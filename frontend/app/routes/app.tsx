@@ -2,6 +2,7 @@ import { Outlet, useLoaderData } from "@remix-run/react";
 import { authenticate } from "~/shopify.server";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
+import { ChatWidget } from "~/components/ChatWidget";
 
 console.log("[app.tsx] module loading...");
 
@@ -29,6 +30,7 @@ export default function AppLayout() {
         <a href="/app/configuration">Configuration</a>
       </ui-nav-menu>
       <Outlet />
+      <ChatWidget />
     </AppProvider>
   );
 }
