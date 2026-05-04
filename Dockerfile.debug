@@ -30,6 +30,7 @@ COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/prisma ./prisma
 COPY frontend/public ./public
+COPY frontend/shopify.app.local.toml ./shopify.app.toml
 RUN mkdir -p data
 
 # BE - dev mode (volumes will mount source code)
