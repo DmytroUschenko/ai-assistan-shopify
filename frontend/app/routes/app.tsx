@@ -27,6 +27,7 @@ export default function AppLayout() {
       <ui-nav-menu>
         <a href="/app" rel="home">Home</a>
         <a href="/app/configuration">Configuration</a>
+        <a href="/app/configuration">Configuration</a>
       </ui-nav-menu>
       <Outlet />
     </AppProvider>

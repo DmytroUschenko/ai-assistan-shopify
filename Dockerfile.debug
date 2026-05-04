@@ -24,25 +24,18 @@ FROM node:20-alpine AS debug
 RUN apk add --no-cache openssl ca-certificates supervisor
 WORKDIR /app
 
-# FE
+# FE - dev mode (volumes will mount source code)
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
-COPY --from=fe-builder /build/frontend/build ./build
-COPY --from=fe-builder /build/frontend/node_modules/.prisma ./node_modules/.prisma
-COPY --from=fe-builder /build/frontend/node_modules/@prisma ./node_modules/@prisma
-COPY --from=fe-builder /build/frontend/node_modules/prisma ./node_modules/prisma
-COPY --from=fe-builder /build/frontend/node_modules/.bin/prisma ./node_modules/.bin/prisma
 COPY frontend/prisma ./prisma
-COPY frontend/server.js ./
 COPY frontend/public ./public
 RUN mkdir -p data
 
-# BE
+# BE - dev mode (volumes will mount source code)
 WORKDIR /app/backend
-COPY backend/package*.json ./
+COPY backend/package*.json backend/tsconfig*.json backend/nest-cli.json ./
 RUN npm ci
-COPY --from=be-builder /build/backend/dist ./dist
 
 WORKDIR /app
 COPY supervisord.debug.conf /etc/supervisord.conf

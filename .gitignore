@@ -12,6 +12,7 @@ CLAUDE.md
 # Shopify environment-specific TOML files
 frontend/shopify.app.local.toml
 frontend/shopify.app.prod.toml
+frontend/shopify.app.toml
 
 # Frontend build output
 frontend/build/
