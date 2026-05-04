@@ -127,7 +127,7 @@ cat docker-compose.yml | grep -A 20 "environment:"
 git pull origin main
 
 # Build and start containers
-docker-compose up -d
+make deploy-prod
 
 # Wait for services to be ready (check logs)
 docker-compose logs -f
@@ -292,11 +292,8 @@ git pull origin main
 ### 7.2 Rebuild and Restart
 
 ```bash
-# Rebuild containers (picks up new code)
-docker-compose build
-
-# Restart without losing data
-docker-compose up -d
+# Rebuild containers and restart (picks up new code)
+make deploy-prod
 
 # Watch logs for startup
 docker-compose logs -f
@@ -402,8 +399,7 @@ docker-compose exec postgres psql -U <DB_USERNAME> ai_assistant_db < backup_2024
 git checkout <previous-commit-hash>
 
 # Restart with previous version
-docker-compose build
-docker-compose up -d
+make deploy-prod
 
 # Verify
 docker-compose logs -f
@@ -477,11 +473,11 @@ If using self-signed or custom certificates:
 |------|------|---------|
 | 1 | Configure Shopify Partner Dashboard | Manual in Partner Dashboard |
 | 2 | Create `.env` file | `cp .env.example .env && edit .env` |
-| 3 | Deploy stack | `docker-compose up -d` |
+| 3 | Deploy stack | `make deploy-prod` |
 | 4 | Verify services | `docker-compose ps && docker-compose logs -f` |
 | 5 | Test OAuth flow | Visit `https://<domain>` in browser |
 | 6 | Monitor | `docker-compose logs -f` |
-| 7 | Update | `git pull && docker-compose build && docker-compose up -d` |
+| 7 | Update | `git pull && make deploy-prod` |
 
 ## Support and Troubleshooting
 
