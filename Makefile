@@ -21,10 +21,7 @@ deploy-prod:
 	git pull
 	docker compose build
 	docker compose up -d
-	@echo "Waiting for containers to be healthy..."
-	sleep 5
-	@echo "Running backend migrations..."
-	docker compose exec app sh -c "cd /app/backend && npm run migration:run"
+	@echo "✓ Containers started. Migrations run automatically on startup."
 
 deploy-local:
 ifdef FULL
