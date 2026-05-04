@@ -101,7 +101,7 @@ export default function Index() {
               />
               {actionData?.success && (
                 <div style={{ marginTop: "1rem" }}>
-                  <Text tone="success">✓ Settings updated successfully.</Text>
+                  <Text tone="success">✓ Settings successfully.</Text>
                 </div>
               )}
               {actionData?.error && (
