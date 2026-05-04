@@ -13,6 +13,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@preact/signals": "^2.9.0",
     "@prisma/client": "^5.10.0",
     "@remix-run/express": "^2.7.0",
     "@remix-run/node": "^2.7.0",
@@ -22,9 +23,11 @@
     "@shopify/polaris": "^12.0.0",
     "@shopify/shopify-app-remix": "^2.5.0",
     "@shopify/shopify-app-session-storage-prisma": "^4.0.0",
+    "@shopify/ui-extensions": "2025.10.14",
     "compression": "^1.7.4",
     "express": "^4.18.2",
     "morgan": "^1.10.0",
+    "preact": "^10.29.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

@@ -27,7 +27,7 @@ function nextId() {
 }
 
 function AssistantChat() {
-  const { auth } = useApi("admin.product-details.action.render");
+  const { auth } = useApi();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -127,15 +127,5 @@ function AssistantChat() {
 
 export default reactExtension(
   "admin.product-details.action.render",
-  () => <AssistantChat />,
-);
-
-export const orderAction = reactExtension(
-  "admin.order-details.action.render",
-  () => <AssistantChat />,
-);
-
-export const customerAction = reactExtension(
-  "admin.customer-details.action.render",
   () => <AssistantChat />,
 );

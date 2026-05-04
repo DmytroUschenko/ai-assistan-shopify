@@ -22,7 +22,7 @@ export function FloatingButton({ onClick }: FloatingButtonProps) {
         size="large"
         icon={<Icon source={ChatIcon} />}
         accessibilityLabel="Open AI Assistant"
-      >Test</Button>
+      />
     </div>
   );
 }

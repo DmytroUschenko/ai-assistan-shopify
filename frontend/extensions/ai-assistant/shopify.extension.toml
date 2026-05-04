@@ -1,23 +1,12 @@
-name = "ai-assistant"
-type = "ui_extension"
-api_version = "2025-01"
+api_version = "2025-10"
 
 [[extensions]]
 name = "AI Assistant"
 handle = "ai-assistant"
 type = "ui_extension"
+uid = "f86b30a7-e5a7-5d4e-b33a-0a240196266ec1976fb8"
 
 [[extensions.targeting]]
 target = "admin.product-details.action.render"
-module = "./src/AssistantAction.tsx"
-label = "AI Assistant"
-
-[[extensions.targeting]]
-target = "admin.order-details.action.render"
-module = "./src/AssistantAction.tsx"
-label = "AI Assistant"
-
-[[extensions.targeting]]
-target = "admin.customer-details.action.render"
 module = "./src/AssistantAction.tsx"
 label = "AI Assistant"
