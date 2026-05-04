@@ -18,30 +18,30 @@ help:
 	@echo "  make clean             Remove all containers and volumes"
 
 deploy-prod:
-	docker-compose up -d
+	docker compose up -d
 
 deploy-local:
 ifdef FULL
 	@echo "Full reset: stopping containers, removing volumes, rebuilding..."
-	docker-compose -f docker-compose.debug.yml down -v
-	docker-compose -f docker-compose.debug.yml build --no-cache
-	docker-compose -f docker-compose.debug.yml up -d
+	docker compose -f docker-compose.debug.yml down -v
+	docker compose -f docker-compose.debug.yml build --no-cache
+	docker compose -f docker-compose.debug.yml up -d
 else
-	docker-compose -f docker-compose.debug.yml up -d
+	docker compose -f docker-compose.debug.yml up -d
 endif
 
 local-stop:
-	docker-compose -f docker-compose.debug.yml down
+	docker compose -f docker-compose.debug.yml down
 
 local-logs:
-	docker-compose -f docker-compose.debug.yml logs -f
+	docker compose -f docker-compose.debug.yml logs -f
 
 local-shell-fe:
-	docker-compose -f docker-compose.debug.yml exec app sh -c "cd /app/frontend && sh"
+	docker compose -f docker-compose.debug.yml exec app sh -c "cd /app/frontend && sh"
 
 local-shell-be:
-	docker-compose -f docker-compose.debug.yml exec app sh -c "cd /app/backend && sh"
+	docker compose -f docker-compose.debug.yml exec app sh -c "cd /app/backend && sh"
 
 clean:
-	docker-compose down -v
-	docker-compose -f docker-compose.debug.yml down -v
+	docker compose down -v
+	docker compose -f docker-compose.debug.yml down -v
