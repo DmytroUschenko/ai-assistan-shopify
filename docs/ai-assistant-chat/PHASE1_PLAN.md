@@ -1,7 +1,7 @@
 # Phase 1 Plan — Embedded Chat Widget
 
 ## Goal
-Implement a Sidekick-like assistant entry point inside the embedded app iframe (`/app/*`) before moving to Shopify Admin Action extension work.
+Implement a Sidekick-like assistant entry point inside the embedded app iframe (`/app/*`).
 
 ## Scope
 - In scope:
@@ -12,7 +12,7 @@ Implement a Sidekick-like assistant entry point inside the embedded app iframe (
 - Out of scope:
   - Real AI backend integration
   - Persistent chat history
-  - Shopify Admin Action extension rollout (Phase 2)
+  - Shopify Admin extension rollout
 
 ## Planned File Changes
 - Create: `frontend/app/components/ChatWidget/FloatingButton.tsx`
@@ -32,3 +32,6 @@ Implement a Sidekick-like assistant entry point inside the embedded app iframe (
 - Sidebar opens/closes reliably.
 - Submitting text produces mock assistant response in UI.
 - No TypeScript/compile errors in Phase 1 files.
+
+## Note
+The team later decided to postpone the extension approach and continue with the embedded application surface only for now.

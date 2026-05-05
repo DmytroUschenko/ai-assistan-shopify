@@ -3,6 +3,11 @@
 ## Purpose
 Track what was planned, what changed during implementation, and why decisions were made.
 
+## Current Direction
+Embedded application approach is active.
+
+Shopify admin extension approach is postponed and removed from the current codebase. The extension exploration remains documented only as decision history.
+
 ## Platform Constraint (Key)
 Shopify does not allow third-party apps to inject a persistent floating button across all native admin pages.
 
@@ -16,14 +21,6 @@ Impact:
 Shopify Admin
 ├── Embedded app routes (/app/*)
 │   └── Floating chat widget (FAB + sidebar)
-│
-├── Admin Action extension
-│   └── Product details "More actions" entry
-│
-└── Admin Block extensions
-        ├── Product details visible block
-        ├── Order details visible block
-        └── Customer details visible block
 
 Shared mock endpoint
 └── POST /api/chat (Remix resource route)
@@ -51,46 +48,34 @@ Why:
 - Fastest path to validate UX and chat interaction inside controlled iframe context.
 
 ### Phase 2 — Admin Extensions in Shopify Native UI
-Status: In progress, delivered in increments.
+Status: Postponed.
 
 What changed:
-- Added admin action extension in `frontend/extensions/ai-assistant/` for product details.
-- Added visible admin block extensions:
-    - `frontend/extensions/ai-assistant-product-block/`
-    - `frontend/extensions/ai-assistant-order-block/`
-    - `frontend/extensions/ai-assistant-customer-block/`
+- Extension exploration was removed from the active codebase.
 
 Why changed from initial plan:
-- Original approach expected multi-target action in one extension and React wrapper implementation.
-- Real CLI/runtime behavior required:
-    - One target per admin action/block extension in generated model.
-    - Preact scaffold compatibility for stable CLI/build workflow.
-- Merchant UX requirement demanded visible button-like entry outside "More actions", which is best served by admin blocks.
+- Team decided to focus on the embedded application experience first.
+- Extension surfaces added delivery and maintenance overhead before backend assistant behavior was ready.
+- Current product direction favors validating the assistant inside the application surface before expanding to native admin placements.
 
 ## Decisions Log
 
 1. Keep embedded floating assistant.
 Reason: best UX inside app surface and no platform restrictions.
 
-2. Keep admin action extension for product details.
-Reason: standard native flow and modal interaction entry.
+2. Postpone admin extension rollout.
+Reason: prioritize application-first delivery and reduce surface-area complexity.
 
-3. Add 3 admin blocks (product/order/customer).
-Reason: visible assistant entry on key pages without relying on "More actions".
-
-4. Use mock endpoint for all surfaces.
+3. Use mock endpoint for active app surface.
 Reason: consistent UI testing while backend AI is pending.
 
 ## Remaining Work
 
 - Replace mock `/api/chat` with backend AI endpoint.
-- Add robust auth verification path for extension-origin calls.
-- Add per-surface context prompts and richer assistant actions.
+- Add richer app-surface prompts and assistant actions.
 - Add persistence/history and streaming responses.
 
-## How To Extend Coverage
+## Deferred Work
 
-For each new page surface:
-1. Generate a new admin action or admin block extension.
-2. Set the target in `shopify.extension.toml`.
-3. Reuse the same chat call contract to `/api/chat`.
+- Revisit Shopify admin extensions after the embedded assistant and backend AI flow are stable.
+- Reassess which admin surfaces justify extension investment based on actual merchant usage.

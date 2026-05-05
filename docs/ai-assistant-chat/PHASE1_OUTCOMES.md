@@ -34,3 +34,8 @@ Completed and validated in local development.
 
 ## Phase 1 Exit Result
 Phase 1 objective was met: embedded assistant interaction is functional and testable.
+
+## Follow-up Direction
+Continue with the embedded application assistant only.
+
+Shopify admin extensions were explored separately and later postponed.
