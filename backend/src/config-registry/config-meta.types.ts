@@ -1,5 +1,5 @@
 /** Supported field types for FE form rendering. */
-export type FieldType = 'select' | 'text' | 'toggle' | 'number';
+export type FieldType = 'select' | 'text' | 'toggle' | 'number' | 'encrypted';
 
 /** One option in a select field. */
 export interface SelectOption {

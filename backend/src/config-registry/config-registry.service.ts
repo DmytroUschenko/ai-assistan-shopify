@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository } from 'typeorm';
 import { CoreConfig } from './core-config.entity';
@@ -8,6 +9,7 @@ import {
   deepMerge,
   getByPath,
 } from './utils/config.utils';
+import { encrypt, decrypt } from './utils/encryption.utils';
 
 type PlainObject = Record<string, unknown>;
 
@@ -20,6 +22,7 @@ export class ConfigRegistryService implements OnModuleInit {
   constructor(
     @InjectRepository(CoreConfig)
     private readonly repo: Repository<CoreConfig>,
+    private readonly configService: ConfigService,
   ) {}
 
   onModuleInit(): void {
@@ -107,11 +110,17 @@ export class ConfigRegistryService implements OnModuleInit {
 
   /**
    * Persists a config value for the given shop and path (upsert).
+   * Encrypts the value if the field metadata declares fieldType 'encrypted'.
    */
   async set(shopId: string, path: string, value: unknown): Promise<void> {
+    let storedValue = value;
+    if (this.isEncryptedField(path)) {
+      const key = this.configService.getOrThrow<string>('ENCRYPTION_KEY');
+      storedValue = encrypt(String(value), key);
+    }
     await this.repo.upsert(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { shopId, path, value: value as any, updatedAt: new Date() },
+      { shopId, path, value: storedValue as any, updatedAt: new Date() },
       ['shopId', 'path'],
     );
   }
@@ -150,9 +159,27 @@ export class ConfigRegistryService implements OnModuleInit {
 
     const flat: Record<string, unknown> = {};
     for (const row of rows) {
-      flat[row.path] = row.value;
+      if (this.isEncryptedField(row.path) && typeof row.value === 'string' && row.value.includes(':')) {
+        try {
+          const key = this.configService.getOrThrow<string>('ENCRYPTION_KEY');
+          flat[row.path] = decrypt(row.value, key);
+        } catch {
+          this.logger.warn(`Failed to decrypt value for path "${row.path}" — skipping`);
+          flat[row.path] = '';
+        }
+      } else {
+        flat[row.path] = row.value;
+      }
     }
 
     return convertFlatPathsToObject(flat);
+  }
+
+  /** Returns true if the field at the given full dot-path has fieldType 'encrypted'. */
+  isEncryptedField(path: string): boolean {
+    const [namespace, ...rest] = path.split('.');
+    const subPath = rest.join('.');
+    const meta = this.metaRegistry.get(namespace);
+    return meta?.fields[subPath]?.fieldType === 'encrypted';
   }
 }

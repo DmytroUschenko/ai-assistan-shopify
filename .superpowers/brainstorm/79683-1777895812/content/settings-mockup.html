@@ -1,0 +1,78 @@
+<h2>Settings Page — Dynamic Config Renderer</h2>
+<p class="subtitle">How the fully-dynamic settings page would look with all field types rendered. Each "module" comes from the schema — no hardcoded sections.</p>
+
+<div style="display:flex;gap:24px;flex-direction:column;max-width:860px;margin:0 auto">
+
+  <!-- MODULE: AI Assistant (general) -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px">
+    <div style="margin-bottom:20px">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent)">Module</span>
+      <h3 style="margin:4px 0 0;font-size:18px">AI Assistant</h3>
+    </div>
+
+    <!-- Group: General -->
+    <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+      <p style="margin:0 0 16px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">General</p>
+
+      <!-- Field: toggle -->
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <p style="margin:0;font-weight:600">Enable</p>
+          <p style="margin:4px 0 0;color:var(--muted);font-size:14px">Toggle the AI Assistant on or off</p>
+        </div>
+        <div style="width:48px;height:28px;background:#30a46c;border-radius:14px;position:relative;cursor:pointer">
+          <div style="width:22px;height:22px;background:#fff;border-radius:50%;position:absolute;top:3px;right:3px;box-shadow:0 1px 4px rgba(0,0,0,.2)"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE: Lokte Connection -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px">
+    <div style="margin-bottom:20px">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent)">Module</span>
+      <h3 style="margin:4px 0 0;font-size:18px">Lokte Connection</h3>
+    </div>
+
+    <!-- Group: Connection -->
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <p style="margin:0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Connection</p>
+
+      <!-- toggle field -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid var(--border)">
+        <div>
+          <p style="margin:0;font-weight:600">Enabled</p>
+          <p style="margin:4px 0 0;color:var(--muted);font-size:14px">Activate Lokte AI for this store</p>
+        </div>
+        <div style="width:48px;height:28px;background:#30a46c;border-radius:14px;position:relative;cursor:pointer">
+          <div style="width:22px;height:22px;background:#fff;border-radius:50%;position:absolute;top:3px;right:3px;box-shadow:0 1px 4px rgba(0,0,0,.2)"></div>
+        </div>
+      </div>
+
+      <!-- encrypted field -->
+      <div style="padding-bottom:16px;border-bottom:1px solid var(--border)">
+        <label style="display:block;font-weight:600;margin-bottom:4px">API Key</label>
+        <p style="margin:0 0 10px;color:var(--muted);font-size:14px">Secret token for the Lokte API (stored encrypted)</p>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="password" value="mySecretApiKeyHere" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-secondary,#1a1a1a);color:var(--text);font-size:14px;font-family:monospace" placeholder="Enter API key..." />
+          <button style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);cursor:pointer;font-size:13px">👁 Reveal</button>
+        </div>
+        <p style="margin:6px 0 0;font-size:12px;color:var(--muted)">🔒 Stored encrypted at rest — value is masked in all API responses</p>
+      </div>
+
+      <!-- number field -->
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:4px">Persona ID</label>
+        <p style="margin:0 0 10px;color:var(--muted);font-size:14px">Numeric ID of the Lokte persona to use</p>
+        <input type="number" value="238" style="width:160px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-secondary,#1a1a1a);color:var(--text);font-size:14px" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Save button -->
+  <div style="display:flex;justify-content:flex-end;gap:12px">
+    <button style="padding:10px 20px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);cursor:pointer">Cancel</button>
+    <button style="padding:10px 20px;border:none;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;font-weight:600">Save Changes</button>
+  </div>
+
+</div>

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "shopify app dev",
-    "dev:local": "concurrently \"remix watch\" \"node --watch server.js\"",
+    "dev:local": "concurrently \"remix watch\" \"node --inspect=0.0.0.0:9229 --watch server.js\"",
     "build": "remix build",
     "build:watch": "remix watch",
     "start": "node server.js",

@@ -1,0 +1,155 @@
+<h2>System Architecture — AI Assistant + Lokte Integration</h2>
+<p class="subtitle">Data flow from Shopify Admin to Lokte API and back</p>
+
+<div style="max-width:900px;margin:0 auto;font-size:13px">
+
+  <!-- Flow diagram -->
+  <div style="display:grid;grid-template-columns:1fr 40px 1fr 40px 1fr 40px 1fr;gap:0;align-items:center;margin-bottom:32px">
+
+    <!-- Column 1: Browser -->
+    <div style="text-align:center">
+      <div style="background:var(--surface);border:2px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:8px">
+        <div style="font-size:28px;margin-bottom:6px">🌐</div>
+        <strong>Shopify Admin</strong>
+        <div style="color:var(--muted);font-size:12px;margin-top:4px">Browser</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 6px;font-size:11px;color:var(--muted)">Settings UI<br/>(dynamic fields)</div>
+    </div>
+
+    <!-- arrow -->
+    <div style="text-align:center;font-size:20px;color:var(--muted)">→</div>
+
+    <!-- Column 2: Remix FE -->
+    <div style="text-align:center">
+      <div style="background:var(--surface);border:2px solid #7c5cbf;border-radius:12px;padding:16px;margin-bottom:8px">
+        <div style="font-size:28px;margin-bottom:6px">⚛️</div>
+        <strong>Remix Server</strong>
+        <div style="color:var(--muted);font-size:12px;margin-top:4px">:3000 (public)</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 6px;font-size:11px;color:var(--muted)">
+        loader → GET schema+values<br/>
+        action → POST config<br/>
+        <span style="color:#7c5cbf">future: POST /ask proxy</span>
+      </div>
+    </div>
+
+    <!-- arrow -->
+    <div style="text-align:center;font-size:20px;color:var(--muted)">→</div>
+
+    <!-- Column 3: NestJS BE -->
+    <div style="text-align:center">
+      <div style="background:var(--surface);border:2px solid #e0234e;border-radius:12px;padding:16px;margin-bottom:8px">
+        <div style="font-size:28px;margin-bottom:6px">🦅</div>
+        <strong>NestJS API</strong>
+        <div style="color:var(--muted);font-size:12px;margin-top:4px">:3001 (internal)</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 6px;font-size:11px;color:var(--muted)">
+        ConfigController (existing)<br/>
+        <strong style="color:#e0234e">LokteController NEW</strong><br/>
+        POST /question
+      </div>
+    </div>
+
+    <!-- arrow -->
+    <div style="text-align:center;font-size:20px;color:var(--muted)">→</div>
+
+    <!-- Column 4: Lokte API -->
+    <div style="text-align:center">
+      <div style="background:var(--surface);border:2px solid #30a46c;border-radius:12px;padding:16px;margin-bottom:8px">
+        <div style="font-size:28px;margin-bottom:6px">🤖</div>
+        <strong>Lokte API</strong>
+        <div style="color:var(--muted);font-size:12px;margin-top:4px">lokte.vaimo.network</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 6px;font-size:11px;color:var(--muted)">
+        POST create-chat-session<br/>
+        POST send-message<br/>
+        ← NDJSON stream
+      </div>
+    </div>
+  </div>
+
+  <!-- New files -->
+  <div style="margin-bottom:28px">
+    <h3 style="margin-bottom:14px">📁 New Files (Backend)</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <code style="color:#e0234e;font-size:12px">backend/src/lokte/</code>
+        <ul style="margin:8px 0 0;padding-left:16px;color:var(--muted);font-size:12px;line-height:1.8">
+          <li>lokte.module.ts</li>
+          <li>lokte.controller.ts <span style="color:var(--text)">← POST /question</span></li>
+          <li>lokte.service.ts <span style="color:var(--text)">← API calls + NDJSON</span></li>
+          <li>dtos/ask-question.dto.ts</li>
+        </ul>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <code style="color:#e0234e;font-size:12px">config-registry changes</code>
+        <ul style="margin:8px 0 0;padding-left:16px;color:var(--muted);font-size:12px;line-height:1.8">
+          <li>config-meta.types.ts <span style="color:var(--text)">← add 'encrypted'</span></li>
+          <li>utils/encryption.utils.ts <span style="color:var(--text)">← AES-256</span></li>
+          <li>config-registry.service.ts <span style="color:var(--text)">← auto encrypt/decrypt</span></li>
+          <li>config.controller.ts <span style="color:var(--text)">← mask '****'</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- New files FE -->
+  <div style="margin-bottom:28px">
+    <h3 style="margin-bottom:14px">📁 New / Changed Files (Frontend)</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <code style="color:#7c5cbf;font-size:12px">frontend/app/components/ (new)</code>
+        <ul style="margin:8px 0 0;padding-left:16px;color:var(--muted);font-size:12px;line-height:1.8">
+          <li>ConfigField.tsx <span style="color:var(--text)">← per-type renderer</span></li>
+          <li>ConfigModule.tsx <span style="color:var(--text)">← one namespace card</span></li>
+        </ul>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <code style="color:#7c5cbf;font-size:12px">frontend/app/ (changed)</code>
+        <ul style="margin:8px 0 0;padding-left:16px;color:var(--muted);font-size:12px;line-height:1.8">
+          <li>routes/app._index.tsx <span style="color:var(--text)">← dynamic renderer</span></li>
+          <li>backend.server.ts <span style="color:var(--text)">← add askQuestion()</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Encryption flow -->
+  <div>
+    <h3 style="margin-bottom:14px">🔒 Encryption Flow (api_key)</h3>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px">
+      <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px;text-align:center">
+          <div style="background:#1e3a2a;border:1px solid #30a46c;border-radius:8px;padding:12px;font-size:12px">
+            <strong>FE sends</strong><br/>
+            <code style="color:#30a46c">"myActualApiKey"</code>
+          </div>
+          <div style="margin:6px 0;color:var(--muted)">↓ POST /config/:shopId</div>
+        </div>
+        <div style="flex:1;min-width:180px;text-align:center">
+          <div style="background:#3a1e2a;border:1px solid #e0234e;border-radius:8px;padding:12px;font-size:12px">
+            <strong>ConfigService.set()</strong><br/>
+            <code style="color:#e0234e">detects 'encrypted' type</code><br/>
+            <span style="color:var(--muted)">→ AES-256 encrypt</span>
+          </div>
+          <div style="margin:6px 0;color:var(--muted)">↓ stored in Postgres</div>
+        </div>
+        <div style="flex:1;min-width:180px;text-align:center">
+          <div style="background:#1a1e3a;border:1px solid #7c5cbf;border-radius:8px;padding:12px;font-size:12px">
+            <strong>FE reads (GET)</strong><br/>
+            <code style="color:#7c5cbf">"****"</code><br/>
+            <span style="color:var(--muted)">masked in response</span>
+          </div>
+        </div>
+        <div style="flex:1;min-width:180px;text-align:center">
+          <div style="background:#1e3a2a;border:1px solid #30a46c;border-radius:8px;padding:12px;font-size:12px">
+            <strong>LokteService reads</strong><br/>
+            <code style="color:#30a46c">"myActualApiKey"</code><br/>
+            <span style="color:var(--muted)">decrypted internally</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

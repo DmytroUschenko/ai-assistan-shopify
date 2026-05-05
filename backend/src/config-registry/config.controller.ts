@@ -15,6 +15,8 @@ import { ConfigRegistryService } from './config-registry.service';
 import { ConfigNamespaceMeta } from './config-meta.types';
 import { SetConfigDto } from './dtos/set-config.dto';
 
+const MASKED = '****';
+
 @Controller('config')
 @UseGuards(ShopifySessionGuard)
 export class ConfigController {
@@ -46,7 +48,8 @@ export class ConfigController {
   /** GET /config/:shopId — all registered namespaces, merged with DB overrides */
   @Get(':shopId')
   async getAllConfig(@Param('shopId') shopId: string) {
-    return this.configRegistryService.getAllConfig(shopId);
+    const config = await this.configRegistryService.getAllConfig(shopId);
+    return this.maskAllEncrypted(config);
   }
 
   /**
@@ -58,7 +61,11 @@ export class ConfigController {
     @Param('shopId') shopId: string,
     @Query('path') path: string,
   ) {
-    return this.configRegistryService.get(shopId, path);
+    const value = await this.configRegistryService.get(shopId, path);
+    if (this.configRegistryService.isEncryptedField(path)) {
+      return value ? MASKED : value;
+    }
+    return value;
   }
 
   /** GET /config/:shopId/:namespace — merged config for one namespace */
@@ -67,7 +74,8 @@ export class ConfigController {
     @Param('shopId') shopId: string,
     @Param('namespace') namespace: string,
   ) {
-    return this.configRegistryService.getModuleConfig(shopId, namespace);
+    const config = await this.configRegistryService.getModuleConfig(shopId, namespace);
+    return this.maskEncryptedInNamespace(namespace, config);
   }
 
   /** POST /config/:shopId — persist a single value { path, value } */
@@ -79,5 +87,42 @@ export class ConfigController {
   ): Promise<{ saved: boolean }> {
     await this.configRegistryService.set(shopId, dto.path, dto.value);
     return { saved: true };
+  }
+
+  // ---------------------------------------------------------------------------
+
+  private maskAllEncrypted(allConfig: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (const [namespace, nsConfig] of Object.entries(allConfig)) {
+      result[namespace] = this.maskEncryptedInNamespace(namespace, nsConfig as Record<string, unknown>);
+    }
+    return result;
+  }
+
+  private maskEncryptedInNamespace(namespace: string, config: Record<string, unknown>): Record<string, unknown> {
+    const meta = this.configRegistryService.getNamespaceMeta(namespace);
+    if (!meta) return config;
+    return this.maskDeep(config, namespace, meta);
+  }
+
+  private maskDeep(
+    obj: Record<string, unknown>,
+    prefix: string,
+    meta: ConfigNamespaceMeta,
+  ): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const fullPath = `${prefix}.${key}`;
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        result[key] = this.maskDeep(value as Record<string, unknown>, fullPath, meta);
+      } else {
+        // Check if this path (relative to namespace) is an encrypted field
+        const [, ...rest] = fullPath.split('.');
+        const subPath = rest.join('.');
+        const fieldMeta = meta.fields[subPath];
+        result[key] = fieldMeta?.fieldType === 'encrypted' && value ? MASKED : value;
+      }
+    }
+    return result;
   }
 }
