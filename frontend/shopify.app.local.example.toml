@@ -1,0 +1,20 @@
+# Local Shopify app configuration example
+# Copy this file to frontend/shopify.app.local.toml and replace placeholders.
+
+client_id = "<your-client-id>"
+name = "ai-assistant-local"
+application_url = "https://<your-ngrok-subdomain>.ngrok-free.dev"
+embedded = true
+
+[webhooks]
+api_version = "2026-04"
+
+[access_scopes]
+scopes = "write_products,read_orders"
+optional_scopes = []
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [
+  "https://<your-ngrok-subdomain>.ngrok-free.dev/auth/callback"
+]
