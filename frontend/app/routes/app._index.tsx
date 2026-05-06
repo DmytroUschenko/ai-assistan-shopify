@@ -14,6 +14,7 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  isError?: boolean;
 }
 
 type ChatApiResponse = { reply: string } | { error: string };
@@ -93,7 +94,7 @@ export default function AssistantPage() {
     sendMessage(inputValue);
   }, [inputValue, sendMessage]);
 
-  // Append assistant reply when fetcher resolves
+  // Append assistant reply (or error) when fetcher resolves
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data) {
       const data = fetcher.data as ChatApiResponse;
@@ -101,6 +102,11 @@ export default function AssistantPage() {
         setMessages((prev) => [
           ...prev,
           { id: nextId(), role: "assistant", content: data.reply },
+        ]);
+      } else if ("error" in data) {
+        setMessages((prev) => [
+          ...prev,
+          { id: nextId(), role: "assistant", content: data.error, isError: true },
         ]);
       }
     }
@@ -225,6 +231,91 @@ export default function AssistantPage() {
         color: theme.colors.textPrimary,
       }}
     >
+      {/* ── Chat header — only shown in active conversation ── */}
+      {hasMessages && (
+        <div
+          style={{
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: theme.spacing.sm,
+            padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+            borderBottom: `1px solid ${theme.colors.borderSubtle}`,
+            background: theme.colors.surface,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setMessages([])}
+            aria-label="New conversation"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: theme.spacing.xs,
+              padding: `6px ${theme.spacing.sm}`,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.radius.button,
+              background: "transparent",
+              color: theme.colors.textSecondary,
+              fontSize: theme.typography.small,
+              cursor: "pointer",
+              transition: `background ${theme.transitions.fast}`,
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background =
+                theme.colors.suggestionHover;
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background =
+                "transparent";
+            }}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M19 12H5M12 5l-7 7 7 7" />
+            </svg>
+            New conversation
+          </button>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: theme.spacing.sm,
+              marginLeft: "auto",
+            }}
+          >
+            <img
+              src="/assets/logo.png"
+              alt="AI Assistant"
+              style={{
+                width: theme.sizes.avatar,
+                height: theme.sizes.avatar,
+                borderRadius: theme.radius.button,
+                objectFit: "contain",
+              }}
+            />
+            <span
+              style={{
+                fontSize: theme.typography.small,
+                fontWeight: 500,
+                color: theme.colors.textPrimary,
+              }}
+            >
+              AI Assistant
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* ── Scrollable messages (or centered empty state) ── */}
       <div
         style={{
@@ -279,7 +370,7 @@ export default function AssistantPage() {
                 <h1
                   style={{
                     fontSize: theme.typography.heading,
-                    fontWeight: 700,
+                    fontWeight: 500,
                     margin: 0,
                     color: theme.colors.textPrimary,
                     lineHeight: 1.3,
@@ -372,38 +463,69 @@ export default function AssistantPage() {
                 key={msg.id}
                 style={{
                   display: "flex",
-                  flexDirection: "column",
-                  alignItems:
-                    msg.role === "user" ? "flex-end" : "flex-start",
+                  flexDirection: msg.role === "user" ? "column" : "row",
+                  alignItems: msg.role === "user" ? "flex-end" : "flex-start",
+                  gap: theme.spacing.sm,
                 }}
               >
-                <div
-                  style={{
-                    maxWidth: theme.sizes.bubbleMaxWidth,
-                    padding: `10px ${theme.spacing.lg}`,
-                    borderRadius:
-                      msg.role === "user"
-                        ? theme.radius.bubbleUser
-                        : theme.radius.bubbleAssistant,
-                    background:
-                      msg.role === "user" ? theme.colors.brand : theme.colors.surface,
-                    color: msg.role === "user" ? theme.colors.white : theme.colors.textPrimary,
-                    fontSize: theme.typography.body,
-                    lineHeight: 1.5,
-                    boxShadow: theme.shadows.bubble,
-                  }}
-                >
-                  {msg.content}
+                {/* Logo avatar — left side of assistant messages */}
+                {msg.role === "assistant" && (
+                  <img
+                    src="/assets/logo.png"
+                    alt="AI Assistant"
+                    style={{
+                      width: theme.sizes.avatar,
+                      height: theme.sizes.avatar,
+                      borderRadius: theme.radius.button,
+                      objectFit: "contain",
+                      flexShrink: 0,
+                      marginTop: "2px",
+                    }}
+                  />
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                  <div
+                    style={{
+                      maxWidth: theme.sizes.bubbleMaxWidth,
+                      padding: `10px ${theme.spacing.lg}`,
+                      borderRadius:
+                        msg.role === "user"
+                          ? theme.radius.bubbleUser
+                          : theme.radius.bubbleAssistant,
+                      background: msg.isError
+                        ? theme.colors.errorBg
+                        : msg.role === "user"
+                        ? theme.colors.brand
+                        : theme.colors.surface,
+                      color: msg.isError
+                        ? theme.colors.errorText
+                        : msg.role === "user"
+                        ? theme.colors.white
+                        : theme.colors.textPrimary,
+                      border: msg.isError
+                        ? `1px solid ${theme.colors.errorBorder}`
+                        : "none",
+                      fontSize: theme.typography.body,
+                      lineHeight: 1.5,
+                      boxShadow: msg.isError ? "none" : theme.shadows.bubble,
+                    }}
+                  >
+                    {msg.isError && (
+                      <span style={{ marginRight: theme.spacing.xs }}>⚠️</span>
+                    )}
+                    {msg.content}
+                  </div>
+                  <span
+                    style={{
+                      marginTop: theme.spacing.xs,
+                      fontSize: theme.typography.tiny,
+                      color: msg.isError ? theme.colors.errorText : theme.colors.textMuted,
+                    }}
+                  >
+                    {msg.role === "user" ? "You" : msg.isError ? "Error" : "AI Assistant"}
+                  </span>
                 </div>
-                <span
-                  style={{
-                    marginTop: theme.spacing.xs,
-                    fontSize: theme.typography.tiny,
-                    color: theme.colors.textMuted,
-                  }}
-                >
-                  {msg.role === "user" ? "You" : "AI Assistant"}
-                </span>
               </div>
             ))}
 
@@ -411,14 +533,39 @@ export default function AssistantPage() {
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
+                  flexDirection: "row",
+                  alignItems: "flex-start",
                   gap: theme.spacing.sm,
-                  color: theme.colors.textMuted,
-                  fontSize: theme.typography.small,
                 }}
               >
-                <Spinner size="small" />
-                Thinking…
+                <img
+                  src="/assets/logo.png"
+                  alt="AI Assistant"
+                  style={{
+                    width: theme.sizes.avatar,
+                    height: theme.sizes.avatar,
+                    borderRadius: theme.radius.button,
+                    objectFit: "contain",
+                    flexShrink: 0,
+                    marginTop: "2px",
+                  }}
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: theme.spacing.sm,
+                    padding: `10px ${theme.spacing.lg}`,
+                    borderRadius: theme.radius.bubbleAssistant,
+                    background: theme.colors.surface,
+                    boxShadow: theme.shadows.bubble,
+                    color: theme.colors.textMuted,
+                    fontSize: theme.typography.body,
+                  }}
+                >
+                  <Spinner size="small" />
+                  Thinking…
+                </div>
               </div>
             )}
 
