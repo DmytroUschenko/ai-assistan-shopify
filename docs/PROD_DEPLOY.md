@@ -6,7 +6,7 @@ This guide covers deploying the AI Assistant Shopify app to production using Doc
 
 The app runs as a **single Docker container** with:
 - **Frontend**: Remix + React (port 3000) — Shopify embedded app with OAuth
-- **Backend**: NestJS (port 3001, internal-only) — Config registry and shop management
+- **Backend**: NestJS (port 3004, internal-only) — Config registry and shop management
 - **Postgres**: Separate container — persists shops and configurations
 - **Supervisor**: Orchestrates both services within the container
 
@@ -80,7 +80,7 @@ SCOPES=write_products,read_orders
 DATABASE_URL=file:/app/frontend/data/app.db
 
 # Backend
-BACKEND_URL=http://localhost:3001
+BACKEND_URL=http://localhost:3004
 NODE_ENV=production
 
 # Postgres
@@ -175,7 +175,7 @@ docker-compose ps
 
 ```bash
 # Check backend is responding (from inside container)
-docker-compose exec app curl http://localhost:3001/health
+docker-compose exec app curl http://localhost:3004/health
 
 # Expected: 200 OK with JSON response
 ```
@@ -274,7 +274,7 @@ docker-compose logs --tail=1000 > /dev/null  # Truncate logs
 curl -s https://<your-production-domain.com> | head -20
 
 # Backend health
-docker-compose exec app curl http://localhost:3001/health
+docker-compose exec app curl http://localhost:3004/health
 
 # Postgres health
 docker-compose exec postgres pg_isready -U <DB_USERNAME>
@@ -319,11 +319,11 @@ docker-compose logs app
 
 **Check**:
 ```bash
-docker-compose logs app | grep -i "backend\|3001\|hmac"
+docker-compose logs app | grep -i "backend\|3004\|hmac"
 ```
 
 **Fix**:
-- Verify `BACKEND_URL=http://localhost:3001` in docker-compose.yml
+- Verify `BACKEND_URL=http://localhost:3004` in docker-compose.yml
 - Check backend is running: `docker-compose ps` → backend should be "Up"
 - Check backend logs: `docker-compose logs app | grep "backend\|Backend"`
 
@@ -450,7 +450,7 @@ If using self-signed or custom certificates:
 ### 11.2 Network Security
 
 - [ ] Expose only port 3000 to the internet
-- [ ] Backend port 3001 should be internal-only
+- [ ] Backend port 3004 should be internal-only
 - [ ] Use HTTPS only (no HTTP)
 - [ ] Consider IP whitelisting if applicable
 

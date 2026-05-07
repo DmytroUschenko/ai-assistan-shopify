@@ -1,0 +1,301 @@
+{
+  "info": {
+    "name": "Shopify AI Assistant – Local",
+    "_postman_id": "shopify-ai-assistant-local",
+    "description": "Local testing collection for the Shopify AI Assistant backend.\n\nWorkflow:\n1. Run **Dev / Sign HMAC** to get a signature for shop registration.\n2. Run **Dev / Sign Session Token** to get a JWT for config endpoints.\n3. The pre-request scripts on protected folders auto-call the sign endpoints and inject headers — set the collection variables and they run automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",     "value": "http://localhost:3004", "type": "string" },
+    { "key": "shopDomain",  "value": "my-store.myshopify.com", "type": "string" },
+    { "key": "accessToken", "value": "shpat_replace_me",       "type": "string" },
+    { "key": "scope",       "value": "write_products,read_orders", "type": "string" },
+    { "key": "sessionToken", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dev (local only)",
+      "description": "Helper endpoints only available when NODE_ENV != production.",
+      "item": [
+        {
+          "name": "Sign HMAC",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/dev/sign/hmac", "host": ["{{baseUrl}}"], "path": ["dev", "sign", "hmac"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": {\n    \"shopDomain\": \"{{shopDomain}}\",\n    \"accessToken\": \"{{accessToken}}\",\n    \"scope\": \"{{scope}}\"\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('_hmac', res.hmac);",
+                  "pm.collectionVariables.set('_hmacBodyJson', res.bodyJson);",
+                  "console.log('HMAC:', res.hmac);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sign Session Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/dev/sign/session-token", "host": ["{{baseUrl}}"], "path": ["dev", "sign", "session-token"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopDomain\": \"{{shopDomain}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('sessionToken', res.token);",
+                  "console.log('Session token saved.');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Shops",
+      "description": "Requires HMAC. Run 'Dev / Sign HMAC' first, or let the pre-request script do it automatically.",
+      "item": [
+        {
+          "name": "POST /shops – Register Shop",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Auto-sign: call /dev/sign/hmac and inject the header",
+                  "const baseUrl     = pm.collectionVariables.get('baseUrl');",
+                  "const shopDomain  = pm.collectionVariables.get('shopDomain');",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const scope       = pm.collectionVariables.get('scope');",
+                  "",
+                  "const bodyObj = { shopDomain, accessToken, scope };",
+                  "",
+                  "pm.sendRequest({",
+                  "  url: `${baseUrl}/dev/sign/hmac`,",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ body: bodyObj }) }",
+                  "}, (err, res) => {",
+                  "  if (err) { console.error(err); return; }",
+                  "  const { hmac, bodyJson } = res.json();",
+                  "  pm.collectionVariables.set('_hmac', hmac);",
+                  "  pm.collectionVariables.set('_hmacBodyJson', bodyJson);",
+                  "  pm.request.headers.upsert({ key: 'X-Request-Hmac', value: hmac });",
+                  "  console.log('HMAC injected:', hmac);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Request-Hmac", "value": "{{_hmac}}", "description": "Auto-filled by pre-request script" }
+            ],
+            "url": { "raw": "{{baseUrl}}/shops", "host": ["{{baseUrl}}"], "path": ["shops"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopDomain\": \"{{shopDomain}}\",\n  \"accessToken\": \"{{accessToken}}\",\n  \"scope\": \"{{scope}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Config",
+      "description": "Requires session token. Run 'Dev / Sign Session Token' first, or let the pre-request scripts do it automatically.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Auto-refresh session token if missing",
+              "const token = pm.collectionVariables.get('sessionToken');",
+              "if (token) return;",
+              "",
+              "const baseUrl    = pm.collectionVariables.get('baseUrl');",
+              "const shopDomain = pm.collectionVariables.get('shopDomain');",
+              "",
+              "pm.sendRequest({",
+              "  url: `${baseUrl}/dev/sign/session-token`,",
+              "  method: 'POST',",
+              "  header: { 'Content-Type': 'application/json' },",
+              "  body: { mode: 'raw', raw: JSON.stringify({ shopDomain }) }",
+              "}, (err, res) => {",
+              "  if (err) { console.error(err); return; }",
+              "  const { token } = res.json();",
+              "  pm.collectionVariables.set('sessionToken', token);",
+              "  console.log('Session token auto-fetched.');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "GET /config/schema – All Namespaces Meta",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{sessionToken}}" }],
+            "url": { "raw": "{{baseUrl}}/config/schema", "host": ["{{baseUrl}}"], "path": ["config", "schema"] }
+          }
+        },
+        {
+          "name": "GET /config/schema/:namespace – Namespace Meta",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{sessionToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/config/schema/lokte",
+              "host": ["{{baseUrl}}"],
+              "path": ["config", "schema", "lokte"]
+            }
+          }
+        },
+        {
+          "name": "GET /config/:shopId – All Config",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{sessionToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/config/{{shopDomain}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["config", "{{shopDomain}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /config/:shopId/:namespace – Namespace Config",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{sessionToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/config/{{shopDomain}}/lokte",
+              "host": ["{{baseUrl}}"],
+              "path": ["config", "{{shopDomain}}", "lokte"]
+            }
+          }
+        },
+        {
+          "name": "GET /config/:shopId/value – Single Value",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{sessionToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/config/{{shopDomain}}/value?path=lokte.general.enable",
+              "host": ["{{baseUrl}}"],
+              "path": ["config", "{{shopDomain}}", "value"],
+              "query": [{ "key": "path", "value": "lokte.general.enable" }]
+            }
+          }
+        },
+        {
+          "name": "POST /config/:shopId – Set Config Value",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{sessionToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/config/{{shopDomain}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["config", "{{shopDomain}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"path\": \"lokte.general.enable\",\n  \"value\": 1\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lokte",
+      "description": "Requires session token. Run 'Dev / Sign Session Token' first, or let the pre-request script do it automatically.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Auto-refresh session token if missing",
+              "const token = pm.collectionVariables.get('sessionToken');",
+              "if (token) return;",
+              "",
+              "const baseUrl    = pm.collectionVariables.get('baseUrl');",
+              "const shopDomain = pm.collectionVariables.get('shopDomain');",
+              "",
+              "pm.sendRequest({",
+              "  url: `${baseUrl}/dev/sign/session-token`,",
+              "  method: 'POST',",
+              "  header: { 'Content-Type': 'application/json' },",
+              "  body: { mode: 'raw', raw: JSON.stringify({ shopDomain }) }",
+              "}, (err, res) => {",
+              "  if (err) { console.error(err); return; }",
+              "  const { token } = res.json();",
+              "  pm.collectionVariables.set('sessionToken', token);",
+              "  console.log('Session token auto-fetched.');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "POST /lokte/:shopId/question – Ask Question",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{sessionToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/lokte/{{shopDomain}}/question",
+              "host": ["{{baseUrl}}"],
+              "path": ["lokte", "{{shopDomain}}", "question"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What products do you recommend?\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

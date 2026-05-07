@@ -1,5 +1,5 @@
 /** Supported field types for FE form rendering. */
-export type FieldType = 'select' | 'text' | 'toggle' | 'number';
+export type FieldType = 'select' | 'text' | 'toggle' | 'number' | 'secret';
 
 /** One option in a select field. */
 export interface SelectOption {
@@ -21,6 +21,15 @@ export interface ConfigFieldMeta {
   fieldType: FieldType;
   /** Required when fieldType === 'select'. */
   options?: SelectOption[];
+  /**
+   * Optional labeled options for a toggle field — exactly two entries:
+   * index 0 is the "on" state, index 1 is the "off" state.
+   * When omitted the FE should render the toggle with default "On / Off" labels.
+   *
+   * @example
+   * toggleOptions: [{ label: 'Enable', value: 1 }, { label: 'Disable', value: 0 }]
+   */
+  toggleOptions?: [SelectOption, SelectOption];
 }
 
 /**

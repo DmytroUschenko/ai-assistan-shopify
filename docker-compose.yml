@@ -14,9 +14,10 @@ services:
       DATABASE_URL: file:/app/frontend/data/app.db
       SHOPIFY_API_KEY: ${SHOPIFY_API_KEY}
       SHOPIFY_API_SECRET: ${SHOPIFY_API_SECRET}
+      CONFIG_ENCRYPTION_KEY: ${CONFIG_ENCRYPTION_KEY}
       APP_URL: ${APP_URL}
       SCOPES: ${SCOPES:-write_products,read_orders}
-      BACKEND_URL: http://localhost:3001
+      BACKEND_URL: http://localhost:3004
       # BE
       NODE_ENV: ${NODE_ENV:-production}
       ALLOWED_ORIGINS: http://localhost:3000
