@@ -4,12 +4,13 @@ import { Repository } from 'typeorm';
 import { ShopsService } from './shops.service';
 import { Shop } from './shop.entity';
 
-type MockRepository = jest.Mocked<Pick<Repository<Shop>, 'findOne' | 'create' | 'save'>>;
+type MockRepository = jest.Mocked<Pick<Repository<Shop>, 'findOne' | 'findOneOrFail' | 'upsert' | 'save'>>;
 
 function makeMockRepo(): MockRepository {
   return {
     findOne: jest.fn(),
-    create: jest.fn(),
+    findOneOrFail: jest.fn(),
+    upsert: jest.fn(),
     save: jest.fn(),
   };
 }
@@ -37,44 +38,24 @@ describe('ShopsService', () => {
   afterEach(() => jest.clearAllMocks());
 
   describe('registerShop', () => {
-    it('should create and save a new shop when none exists', async () => {
-      const newShop = { shopDomain: 'new-shop.myshopify.com', accessToken: 'tok1', scope: 'read_orders', isActive: true } as Shop;
+    it('should upsert the shop and return it', async () => {
+      const saved = { shopDomain: 'new-shop.myshopify.com', accessToken: 'tok1', scope: 'read_orders', isActive: true } as Shop;
 
-      repo.findOne.mockResolvedValue(null);
-      repo.create.mockReturnValue(newShop);
-      repo.save.mockResolvedValue(newShop);
+      (repo.upsert as jest.Mock).mockResolvedValue(undefined);
+      repo.findOneOrFail.mockResolvedValue(saved);
 
       const result = await service.registerShop('new-shop.myshopify.com', 'tok1', 'read_orders');
 
-      expect(repo.findOne).toHaveBeenCalledWith({ where: { shopDomain: 'new-shop.myshopify.com' } });
-      expect(repo.create).toHaveBeenCalledWith({ shopDomain: 'new-shop.myshopify.com', accessToken: 'tok1', scope: 'read_orders' });
-      expect(repo.save).toHaveBeenCalledWith(newShop);
-      expect(result).toBe(newShop);
-    });
-
-    it('should update accessToken and scope on an existing shop', async () => {
-      const existing = {
-        shopDomain: 'existing.myshopify.com',
-        accessToken: 'old-tok',
-        scope: 'old-scope',
-        isActive: false,
-      } as Shop;
-      const saved = { ...existing, accessToken: 'new-tok', scope: 'new-scope', isActive: true } as Shop;
-
-      repo.findOne.mockResolvedValue(existing);
-      repo.save.mockResolvedValue(saved);
-
-      const result = await service.registerShop('existing.myshopify.com', 'new-tok', 'new-scope');
-
-      expect(repo.create).not.toHaveBeenCalled();
-      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ accessToken: 'new-tok', scope: 'new-scope', isActive: true }));
+      expect(repo.upsert).toHaveBeenCalledWith(
+        { shopDomain: 'new-shop.myshopify.com', accessToken: 'tok1', scope: 'read_orders', isActive: true },
+        { conflictPaths: ['shopDomain'] },
+      );
+      expect(repo.findOneOrFail).toHaveBeenCalledWith({ where: { shopDomain: 'new-shop.myshopify.com' } });
       expect(result).toBe(saved);
     });
 
     it('should propagate DB errors', async () => {
-      repo.findOne.mockResolvedValue(null);
-      repo.create.mockReturnValue({} as Shop);
-      repo.save.mockRejectedValue(new Error('DB connection lost'));
+      (repo.upsert as jest.Mock).mockRejectedValue(new Error('DB connection lost'));
 
       await expect(service.registerShop('shop.myshopify.com', 'tok', 'scope')).rejects.toThrow('DB connection lost');
     });

@@ -8,7 +8,7 @@ This guide covers two approaches for local development:
 
 The AI Assistant Shopify app is a **single-container** application with:
 - **Frontend** (Remix) on port 3000 (or ngrok proxy)
-- **Backend** (NestJS) on port 3001 (internal-only)
+- **Backend** (NestJS) on port 3004 (internal-only)
 - **Postgres** database
 
 For Shopify OAuth to work, you **must** use a public HTTPS URL (ngrok).
@@ -98,8 +98,8 @@ APP_URL=https://isocratic-gauntly-deane.ngrok-free.app
 DATABASE_URL=file:./data/app.db
 
 # Backend
-BACKEND_URL=http://localhost:3001
-PORT=3001
+BACKEND_URL=http://localhost:3004
+PORT=3004
 NODE_ENV=development
 
 # Backend — Postgres in Docker
@@ -115,8 +115,7 @@ ALLOWED_ORIGINS=http://localhost:3000
 
 ```bash
 # Copy and fill in Shopify TOML config
-cp .env.example shopify.app.local.toml
-cp .env.example frontend/shopify.app.local.toml
+cp shopify.app.example.toml frontend/shopify.app.local.toml
 
 # Edit frontend/shopify.app.local.toml
 ```
@@ -149,7 +148,7 @@ make deploy-local FULL=1
 This will:
 - Remove old containers/volumes
 - Build fresh images
-- Start frontend on 3000, backend on 3001, postgres
+- Start frontend on 3000, backend on 3004, postgres
 - Apply database migrations automatically
 
 ### Step 7: Access Your App

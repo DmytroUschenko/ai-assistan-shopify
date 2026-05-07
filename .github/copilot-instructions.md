@@ -5,15 +5,15 @@
 Single-container application with two co-located services managed by **supervisord**:
 
 - **Frontend** — Remix + React on port 3000 (Shopify embedded app, OAuth, settings UI)
-- **Backend** — NestJS on port 3001 (config registry, shop management — **internal only, not exposed**)
+- **Backend** — NestJS on port 4 (config registry, shop management — **internal only, not exposed**)
 - **Postgres** — separate container, used by the backend
 - **SQLite** — used by the frontend for Shopify session storage via Prisma
 
 ```
-Browser → Remix (3000) → [server-side] backend.server.ts → NestJS (3001, localhost) → Postgres
+Browser → Remix (3000) → [server-side] backend.server.ts → NestJS (3004, localhost) → Postgres
 ```
 
-All frontend-to-backend calls are **HMAC-signed** using `SHOPIFY_API_SECRET`. The backend validates every request with `ShopifySessionGuard` before processing. Port 3001 must never be exposed externally.
+All frontend-to-backend calls are **HMAC-signed** using `SHOPIFY_API_SECRET`. The backend validates every request with `ShopifySessionGuard` before processing. Port 3004 must never be exposed externally.
 
 ## Build & Test Commands
 
