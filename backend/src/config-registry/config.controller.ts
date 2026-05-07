@@ -14,6 +14,7 @@ import { ShopifySessionGuard } from '../auth/guards/shopify-session.guard';
 import { ConfigRegistryService } from './config-registry.service';
 import { ConfigNamespaceMeta } from './config-meta.types';
 import { SetConfigDto } from './dtos/set-config.dto';
+import { GetValueQueryDto } from './dtos/get-value-query.dto';
 
 @Controller('config')
 @UseGuards(ShopifySessionGuard)
@@ -52,13 +53,19 @@ export class ConfigController {
   /**
    * GET /config/:shopId/value?path=order.export.enabled
    * Must be declared before `:namespace` to prevent "value" being treated as a namespace.
+   * Secret field values are returned as `"****"`.
    */
   @Get(':shopId/value')
   async getValue(
     @Param('shopId') shopId: string,
-    @Query('path') path: string,
+    @Query() query: GetValueQueryDto,
   ) {
-    return this.configRegistryService.get(shopId, path);
+    const [namespace, ...keys] = query.path.split('.');
+    const fieldPath = keys.join('.');
+    const namespaceMeta = this.configRegistryService.getNamespaceMeta(namespace);
+    const isSecret = namespaceMeta?.fields[fieldPath]?.fieldType === 'secret';
+    if (isSecret) return '****';
+    return this.configRegistryService.get(shopId, query.path);
   }
 
   /** GET /config/:shopId/:namespace — merged config for one namespace */

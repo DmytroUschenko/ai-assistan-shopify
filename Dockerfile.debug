@@ -41,5 +41,5 @@ RUN npm ci
 WORKDIR /app
 COPY supervisord.debug.conf /etc/supervisord.conf
 
-EXPOSE 3000 9229 9230
+EXPOSE 3000 9229 9230 3004
 CMD ["supervisord", "-c", "/etc/supervisord.conf"]
