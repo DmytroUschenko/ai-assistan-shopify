@@ -7,8 +7,11 @@ import { AuthModule } from './auth/auth.module';
 import { ShopsModule } from './shops/shops.module';
 import { ConfigRegistryModule } from './config-registry/config-registry.module';
 import { LokteModule } from './lokte/lokte.module';
+import { DevToolsModule } from './dev-tools/dev-tools.module';
 import { InitialSchema1714284000000 } from './database/migrations/1714284000000-InitialSchema';
 import { AddCoreConfig1745798400000 } from './database/migrations/1745798400000-AddCoreConfig';
+
+const devOnlyModules = process.env.NODE_ENV !== 'production' ? [DevToolsModule] : [];
 
 @Module({
   imports: [
@@ -40,6 +43,7 @@ import { AddCoreConfig1745798400000 } from './database/migrations/1745798400000-
     ShopsModule,
     ConfigRegistryModule,
     LokteModule,
+    ...devOnlyModules,
   ],
 })
 export class AppModule {}
