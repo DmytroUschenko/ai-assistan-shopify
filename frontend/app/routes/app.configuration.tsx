@@ -52,7 +52,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   await authenticate.admin(request);
-  const { sessionToken, shopId, intent, path, value } = await request.json();
+  const { sessionToken, shopId, intent, changes } = await request.json();
 
   const authHeaders = {
     "Content-Type": "application/json",
@@ -70,12 +70,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
   }
 
-  const res = await fetch(`${process.env.BACKEND_URL}/config/${shopId}`, {
-    method: "POST",
-    headers: authHeaders,
-    body: JSON.stringify({ path, value }),
-  });
-  return json(await res.json(), { status: res.status });
+  // Bulk save: one backend call per changed field, run in parallel
+  const results = await Promise.all(
+    (changes as Array<{ path: string; value: unknown }>).map((change) =>
+      fetch(`${process.env.BACKEND_URL}/config/${shopId}`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify(change),
+      })
+    )
+  );
+  const allOk = results.every((r) => r.ok);
+  return json({ saved: allOk }, { status: allOk ? 200 : 500 });
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -430,18 +436,24 @@ export default function Configuration() {
 
   const handleSave = async () => {
     const sessionToken = await shopify.idToken();
+    const changes: Array<{ path: string; value: unknown }> = [];
+
     for (const [namespace, nsMeta] of Object.entries(schema)) {
-      for (const fieldPath of Object.keys(nsMeta.fields)) {
+      for (const [fieldPath, fieldMeta] of Object.entries(nsMeta.fields)) {
         const value = getNestedValue(
           (localValues[namespace] as Record<string, unknown>) ?? {},
           fieldPath
         );
-        saveFetcher.submit(
-          { sessionToken, shopId, path: `${namespace}.${fieldPath}`, value },
-          { method: "POST", encType: "application/json" }
-        );
+        // Skip secret fields that haven't been modified (still showing the mask)
+        if (fieldMeta.fieldType === "secret" && value === "****") continue;
+        changes.push({ path: `${namespace}.${fieldPath}`, value });
       }
     }
+
+    saveFetcher.submit(
+      { sessionToken, shopId, changes },
+      { method: "POST", encType: "application/json" }
+    );
   };
 
   const isLoading = loadFetcher.state !== "idle";

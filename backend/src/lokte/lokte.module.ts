@@ -1,5 +1,7 @@
 import { Module, OnModuleInit } from '@nestjs/common';
 import { ConfigRegistryService } from '../config-registry/config-registry.service';
+import { LokteService } from './lokte.service';
+import { LokteController } from './lokte.controller';
 
 /**
  * Lokte feature module.
@@ -10,9 +12,12 @@ import { ConfigRegistryService } from '../config-registry/config-registry.servic
  * Fields:
  *   - general.enable  — toggle  (1 = enabled, 0 = disabled)
  *   - general.api_key — secret  (stored encrypted)
- *   - general.user_id — text
+ *   - general.user_id — text    (used as persona_id in Lokte API calls)
  */
-@Module({})
+@Module({
+  providers: [LokteService],
+  controllers: [LokteController],
+})
 export class LokteModule implements OnModuleInit {
   constructor(private readonly configRegistry: ConfigRegistryService) {}
 
