@@ -9,7 +9,7 @@ async function makeBackendRequest<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
   body?: Record<string, unknown>,
 ): Promise<T> {
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:3004';
   const url = `${backendUrl}${endpoint}`;
   const secret = process.env.SHOPIFY_API_SECRET!;
 

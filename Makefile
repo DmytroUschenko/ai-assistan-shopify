@@ -19,7 +19,9 @@ help:
 
 deploy-prod:
 	git pull
+	docker compose build
 	docker compose up -d
+	@echo "✓ Containers started. Migrations run automatically on startup."
 
 deploy-local:
 ifdef FULL

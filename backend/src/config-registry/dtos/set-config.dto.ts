@@ -1,10 +1,10 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsDefined, IsNotEmpty, IsString } from 'class-validator';
 
 export class SetConfigDto {
   @IsString()
   @IsNotEmpty()
   path!: string;
 
-  @IsNotEmpty()
+  @IsDefined()
   value!: unknown;
 }

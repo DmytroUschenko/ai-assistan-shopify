@@ -17,17 +17,11 @@ export class ShopsService {
     accessToken: string,
     scope: string,
   ): Promise<Shop> {
-    const existing = await this.shopRepository.findOne({ where: { shopDomain } });
-
-    if (existing) {
-      existing.accessToken = accessToken;
-      existing.scope = scope;
-      existing.isActive = true;
-      return this.shopRepository.save(existing);
-    }
-
-    const shop = this.shopRepository.create({ shopDomain, accessToken, scope });
-    return this.shopRepository.save(shop);
+    await this.shopRepository.upsert(
+      { shopDomain, accessToken, scope, isActive: true },
+      { conflictPaths: ['shopDomain'] },
+    );
+    return this.shopRepository.findOneOrFail({ where: { shopDomain } });
   }
 
   async deactivate(shopDomain: string): Promise<void> {
