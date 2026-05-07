@@ -3,10 +3,24 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useEffect, useState } from "react";
+import {
+  Page,
+  Layout,
+  Card,
+  BlockStack,
+  InlineStack,
+  Text,
+  Select as PolarisSelect,
+  TextField,
+  Collapsible,
+  Divider,
+  Banner,
+  Spinner,
+} from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 
-// Mirror of backend config-meta.types.ts
-type FieldType = "select" | "text" | "toggle" | "number";
+// ── Types (mirror of backend config-meta.types.ts) ──────────────────────────
+type FieldType = "select" | "text" | "toggle" | "number" | "secret";
 
 interface SelectOption {
   label: string;
@@ -18,6 +32,8 @@ interface ConfigFieldMeta {
   keyLabel: string;
   fieldType: FieldType;
   options?: SelectOption[];
+  /** Exactly [onOption, offOption] for toggle fields. */
+  toggleOptions?: [SelectOption, SelectOption];
 }
 
 interface ConfigNamespaceMeta {
@@ -28,6 +44,7 @@ interface ConfigNamespaceMeta {
 type Schema = Record<string, ConfigNamespaceMeta>;
 type ConfigValues = Record<string, Record<string, unknown>>;
 
+// ── Server ───────────────────────────────────────────────────────────────────
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   return json({ shopId: session.shop });
@@ -61,6 +78,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return json(await res.json(), { status: res.status });
 };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function getNestedValue(obj: Record<string, unknown>, dotPath: string): unknown {
   return dotPath.split(".").reduce<unknown>((acc, key) => {
     if (acc != null && typeof acc === "object") {
@@ -86,6 +104,283 @@ function setNestedValue(
   return result;
 }
 
+/** Groups field entries by their groupLabel, preserving insertion order. */
+function groupFields(fields: Record<string, ConfigFieldMeta>) {
+  const map = new Map<string, Array<[string, ConfigFieldMeta]>>();
+  for (const entry of Object.entries(fields)) {
+    const label = entry[1].groupLabel;
+    if (!map.has(label)) map.set(label, []);
+    map.get(label)!.push(entry);
+  }
+  return Array.from(map.entries()).map(([groupLabel, entries]) => ({
+    groupLabel,
+    entries,
+  }));
+}
+
+// ── Toggle Switch ─────────────────────────────────────────────────────────────
+function ToggleSwitch({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 44,
+        height: 24,
+        borderRadius: 12,
+        background: checked ? "#008060" : "#8c9196",
+        border: "none",
+        position: "relative",
+        cursor: "pointer",
+        padding: 0,
+        flexShrink: 0,
+        transition: "background 0.2s",
+      }}
+    >
+      <span
+        style={{
+          display: "block",
+          width: 18,
+          height: 18,
+          borderRadius: "50%",
+          background: "#fff",
+          position: "absolute",
+          top: 3,
+          left: checked ? 23 : 3,
+          transition: "left 0.2s",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+        }}
+      />
+    </button>
+  );
+}
+
+// ── Field renderer ────────────────────────────────────────────────────────────
+function ConfigField({
+  namespace,
+  fieldPath,
+  fieldMeta,
+  value,
+  onChange,
+}: {
+  namespace: string;
+  fieldPath: string;
+  fieldMeta: ConfigFieldMeta;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  const id = `field-${namespace}-${fieldPath.replace(/\./g, "-")}`;
+
+  const renderControl = () => {
+    switch (fieldMeta.fieldType) {
+      case "select":
+        return (
+          <PolarisSelect
+            label=""
+            labelHidden
+            id={id}
+            options={(fieldMeta.options ?? []).map((o) => ({
+              label: o.label,
+              value: String(o.value),
+            }))}
+            value={String(value ?? "")}
+            onChange={(v) => {
+              const opt = fieldMeta.options?.find((o) => String(o.value) === v);
+              onChange(opt !== undefined ? opt.value : v);
+            }}
+          />
+        );
+
+      case "toggle": {
+        const isOn = Boolean(value);
+        const stateLabel = fieldMeta.toggleOptions
+          ? (isOn ? fieldMeta.toggleOptions[0].label : fieldMeta.toggleOptions[1].label)
+          : (isOn ? "On" : "Off");
+        return (
+          <InlineStack gap="300" align="start" blockAlign="center">
+            <ToggleSwitch
+              checked={isOn}
+              onChange={(newChecked) => {
+                if (fieldMeta.toggleOptions) {
+                  // Use the typed option values (e.g. 1/0) rather than plain boolean
+                  onChange(
+                    newChecked
+                      ? fieldMeta.toggleOptions[0].value
+                      : fieldMeta.toggleOptions[1].value
+                  );
+                } else {
+                  onChange(newChecked);
+                }
+              }}
+            />
+            <Text variant="bodyMd" as="span" tone="subdued">
+              {stateLabel}
+            </Text>
+          </InlineStack>
+        );
+      }
+
+      case "number":
+        return (
+          <TextField
+            label=""
+            labelHidden
+            id={id}
+            type="number"
+            value={String(value ?? "")}
+            onChange={(v) => onChange(v === "" ? "" : Number(v))}
+            autoComplete="off"
+          />
+        );
+
+      case "secret":
+        return (
+          <TextField
+            label=""
+            labelHidden
+            id={id}
+            type="password"
+            value={String(value ?? "")}
+            onChange={(v) => onChange(v)}
+            autoComplete="new-password"
+          />
+        );
+
+      default: // "text"
+        return (
+          <TextField
+            label=""
+            labelHidden
+            id={id}
+            type="text"
+            value={String(value ?? "")}
+            onChange={(v) => onChange(v)}
+            autoComplete="off"
+          />
+        );
+    }
+  };
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "0.5rem 1.5rem",
+        alignItems: "center",
+        padding: "0.75rem 0",
+      }}
+    >
+      <label htmlFor={id}>
+        <Text variant="bodyMd" as="span" fontWeight="medium">
+          {fieldMeta.keyLabel}
+        </Text>
+      </label>
+      <div>{renderControl()}</div>
+    </div>
+  );
+}
+
+// ── Collapsible group (Magento-style) ─────────────────────────────────────────
+function ConfigGroup({
+  groupLabel,
+  namespace,
+  entries,
+  nsValues,
+  onFieldChange,
+}: {
+  groupLabel: string;
+  namespace: string;
+  entries: Array<[string, ConfigFieldMeta]>;
+  nsValues: Record<string, unknown>;
+  onFieldChange: (fieldPath: string, value: unknown) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const id = `grp-${namespace}-${groupLabel.replace(/\W+/g, "-").toLowerCase()}`;
+
+  return (
+    <div>
+      {/* Group header */}
+      <button
+        type="button"
+        aria-controls={id}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "0.7rem 1rem",
+          background: "#f6f6f7",
+          border: "1px solid #e1e3e5",
+          borderRadius: open ? "6px 6px 0 0" : "6px",
+          cursor: "pointer",
+          textAlign: "left",
+          transition: "border-radius 0.15s",
+        }}
+      >
+        <Text variant="headingSm" as="span">
+          {groupLabel}
+        </Text>
+        <span
+          aria-hidden
+          style={{
+            display: "inline-block",
+            color: "#6d7175",
+            fontSize: "0.65rem",
+            transform: open ? "rotate(0deg)" : "rotate(-90deg)",
+            transition: "transform 0.2s",
+            lineHeight: 1,
+          }}
+        >
+          ▼
+        </span>
+      </button>
+
+      {/* Collapsible body */}
+      <Collapsible open={open} id={id}>
+        <div
+          style={{
+            border: "1px solid #e1e3e5",
+            borderTop: "none",
+            borderRadius: "0 0 6px 6px",
+            padding: "0 1rem",
+          }}
+        >
+          {entries.map(([fieldPath, fieldMeta], i) => (
+            <div
+              key={fieldPath}
+              style={
+                i < entries.length - 1
+                  ? { borderBottom: "1px solid #f1f2f3" }
+                  : undefined
+              }
+            >
+              <ConfigField
+                namespace={namespace}
+                fieldPath={fieldPath}
+                fieldMeta={fieldMeta}
+                value={getNestedValue(nsValues, fieldPath)}
+                onChange={(v) => onFieldChange(fieldPath, v)}
+              />
+            </div>
+          ))}
+        </div>
+      </Collapsible>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function Configuration() {
   const { shopId } = useLoaderData<typeof loader>();
   const shopify = useAppBridge();
@@ -94,7 +389,8 @@ export default function Configuration() {
   const saveFetcher = useFetcher<{ saved: boolean }>();
 
   const [localValues, setLocalValues] = useState<ConfigValues>({});
-  const schema = loadFetcher.data?.schema ?? {};
+  const [savedBanner, setSavedBanner] = useState(false);
+  const schema: Schema = loadFetcher.data?.schema ?? {};
 
   useEffect(() => {
     (async () => {
@@ -104,7 +400,7 @@ export default function Configuration() {
         { method: "POST", encType: "application/json" }
       );
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId]);
 
   useEffect(() => {
@@ -112,6 +408,14 @@ export default function Configuration() {
       setLocalValues(loadFetcher.data.values);
     }
   }, [loadFetcher.data?.values]);
+
+  useEffect(() => {
+    if (saveFetcher.data?.saved) {
+      setSavedBanner(true);
+      const t = setTimeout(() => setSavedBanner(false), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [saveFetcher.data]);
 
   const handleChange = (namespace: string, fieldPath: string, value: unknown) => {
     setLocalValues((prev) => ({
@@ -144,112 +448,71 @@ export default function Configuration() {
   const isSaving = saveFetcher.state !== "idle";
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "sans-serif", maxWidth: 760 }}>
-      <h1>Configuration</h1>
+    <Page
+      title="Configuration"
+      primaryAction={{
+        content: isSaving ? "Saving…" : "Save",
+        onAction: handleSave,
+        disabled: isSaving || isLoading,
+        loading: isSaving,
+      }}
+    >
+      <Layout>
+        {savedBanner && (
+          <Layout.Section>
+            <Banner tone="success" onDismiss={() => setSavedBanner(false)}>
+              Configuration saved successfully.
+            </Banner>
+          </Layout.Section>
+        )}
 
-      {isLoading && <p style={{ color: "#666" }}>Loading configuration…</p>}
+        {isLoading && (
+          <Layout.Section>
+            <div style={{ display: "flex", justifyContent: "center", padding: "3rem 0" }}>
+              <BlockStack gap="300" inlineAlign="center">
+                <Spinner size="large" />
+                <Text variant="bodyMd" as="p" tone="subdued">
+                  Loading configuration…
+                </Text>
+              </BlockStack>
+            </div>
+          </Layout.Section>
+        )}
 
-      {!isLoading &&
-        Object.entries(schema).map(([namespace, nsMeta]) => (
-          <section
-            key={namespace}
-            style={{
-              marginBottom: "2rem",
-              border: "1px solid #e1e3e5",
-              borderRadius: 8,
-              padding: "1.25rem",
-            }}
-          >
-            <h2 style={{ marginTop: 0 }}>{nsMeta.moduleLabel}</h2>
+        {!isLoading &&
+          Object.entries(schema).map(([namespace, nsMeta]) => {
+            const groups = groupFields(nsMeta.fields);
+            const nsValues =
+              (localValues[namespace] as Record<string, unknown>) ?? {};
 
-            {Object.entries(nsMeta.fields).map(([fieldPath, fieldMeta]) => {
-              const currentValue = getNestedValue(
-                (localValues[namespace] as Record<string, unknown>) ?? {},
-                fieldPath
-              );
-
-              return (
-                <div
-                  key={fieldPath}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "0.5rem 1rem",
-                    alignItems: "center",
-                    marginBottom: "0.75rem",
-                  }}
-                >
-                  <label>
-                    <span style={{ fontWeight: 600 }}>{fieldMeta.keyLabel}</span>
-                    {fieldMeta.groupLabel && (
-                      <span style={{ color: "#6d7175", fontSize: "0.85em", marginLeft: 6 }}>
-                        ({fieldMeta.groupLabel})
-                      </span>
-                    )}
-                  </label>
-
-                  {fieldMeta.fieldType === "select" && fieldMeta.options ? (
-                    <select
-                      value={String(currentValue ?? "")}
-                      onChange={(e) => {
-                        const opt = fieldMeta.options!.find(
-                          (o) => String(o.value) === e.target.value
-                        );
-                        handleChange(namespace, fieldPath, opt?.value ?? e.target.value);
-                      }}
-                      style={{ padding: "0.35rem 0.5rem", borderRadius: 4 }}
-                    >
-                      {fieldMeta.options.map((opt) => (
-                        <option key={String(opt.value)} value={String(opt.value)}>
-                          {opt.label}
-                        </option>
+            return (
+              <Layout.Section key={namespace}>
+                <Card>
+                  <BlockStack gap="400">
+                    <Text variant="headingMd" as="h2">
+                      {nsMeta.moduleLabel}
+                    </Text>
+                    <Divider />
+                    <BlockStack gap="200">
+                      {groups.map(({ groupLabel, entries }) => (
+                        <ConfigGroup
+                          key={groupLabel}
+                          groupLabel={groupLabel}
+                          namespace={namespace}
+                          entries={entries}
+                          nsValues={nsValues}
+                          onFieldChange={(fieldPath, value) =>
+                            handleChange(namespace, fieldPath, value)
+                          }
+                        />
                       ))}
-                    </select>
-                  ) : fieldMeta.fieldType === "toggle" ? (
-                    <input
-                      type="checkbox"
-                      checked={Boolean(currentValue)}
-                      onChange={(e) => handleChange(namespace, fieldPath, e.target.checked)}
-                      style={{ width: 18, height: 18 }}
-                    />
-                  ) : fieldMeta.fieldType === "number" ? (
-                    <input
-                      type="number"
-                      value={String(currentValue ?? "")}
-                      onChange={(e) =>
-                        handleChange(namespace, fieldPath, Number(e.target.value))
-                      }
-                      style={{ padding: "0.35rem 0.5rem", borderRadius: 4 }}
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      value={String(currentValue ?? "")}
-                      onChange={(e) => handleChange(namespace, fieldPath, e.target.value)}
-                      style={{ padding: "0.35rem 0.5rem", borderRadius: 4 }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </section>
-        ))}
-
-      <button
-        onClick={handleSave}
-        disabled={isSaving || isLoading}
-        style={{
-          padding: "0.5rem 1.25rem",
-          borderRadius: 6,
-          background: "#008060",
-          color: "#fff",
-          border: "none",
-          cursor: isSaving || isLoading ? "not-allowed" : "pointer",
-          opacity: isSaving || isLoading ? 0.6 : 1,
-        }}
-      >
-        {isSaving ? "Saving…" : "Save"}
-      </button>
-    </div>
+                    </BlockStack>
+                  </BlockStack>
+                </Card>
+              </Layout.Section>
+            );
+          })}
+      </Layout>
+    </Page>
   );
 }

@@ -6,6 +6,7 @@ import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { ShopsModule } from './shops/shops.module';
 import { ConfigRegistryModule } from './config-registry/config-registry.module';
+import { LokteModule } from './lokte/lokte.module';
 import { InitialSchema1714284000000 } from './database/migrations/1714284000000-InitialSchema';
 import { AddCoreConfig1745798400000 } from './database/migrations/1745798400000-AddCoreConfig';
 
@@ -38,6 +39,7 @@ import { AddCoreConfig1745798400000 } from './database/migrations/1745798400000-
     AuthModule,
     ShopsModule,
     ConfigRegistryModule,
+    LokteModule,
   ],
 })
 export class AppModule {}
