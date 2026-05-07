@@ -14,7 +14,6 @@ services:
       - ./frontend:/app/frontend
       - fe_node_modules:/app/frontend/node_modules
       - ./backend/src:/app/backend/src
-      - ./backend/dist:/app/backend/dist
       - be_node_modules:/app/backend/node_modules
       - fe_data:/app/frontend/data
     environment:
