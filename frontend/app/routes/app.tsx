@@ -25,7 +25,7 @@ export default function AppLayout() {
   return (
     <AppProvider isEmbeddedApp apiKey={apiKey}>
       <ui-nav-menu>
-        <a href="/app" rel="home">Home</a>
+        <a href="/app" rel="home">AI Assistant</a>
         <a href="/app/configuration">Configuration</a>
       </ui-nav-menu>
       <Outlet />

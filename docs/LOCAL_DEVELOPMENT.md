@@ -122,20 +122,23 @@ cp shopify.app.example.toml frontend/shopify.app.local.toml
 
 Edit `frontend/shopify.app.local.toml`:
 ```toml
-scopes = "write_products,read_orders"
-api_key = "<your-client-id>"
-api_secret = "<your-client-secret>"
-api_version = "2024-10"
-
-[build]
-dir = "dist"
-command = "npm run build"
-watch_paths = ["app/**/*.tsx", "app/**/*.ts"]
+client_id = "<your-client-id>"
+name = "ai-assistant-local"
+application_url = "https://<your-ngrok-subdomain>.ngrok-free.dev"
+embedded = true
 
 [webhooks]
+api_version = "2026-04"
 
-[[webhooks.subscriptions]]
-topics = []
+[access_scopes]
+scopes = "write_products,read_orders"
+optional_scopes = []
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [
+   "https://<your-ngrok-subdomain>.ngrok-free.dev/auth/callback"
+]
 ```
 
 ### Step 6: Start Services
@@ -153,7 +156,7 @@ This will:
 
 ### Step 7: Access Your App
 
-1. Open browser: `https://isocratic-gauntly-deane.ngrok-free.app`
+1. Open browser: `https://<your-ngrok-subdomain>.ngrok-free.dev`
 2. You'll be redirected to Shopify OAuth login
 3. Authorize the app
 4. You'll see the Settings page with the AI Assistant toggle
