@@ -4,6 +4,9 @@ import { authenticate } from "~/shopify.server";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useAppBridge } from "@shopify/app-bridge-react";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 import { assistantTheme as theme } from "~/styles/assistant-theme";
 
 // ── DEV / TEST FLAGS ────────────────────────────────────────────────────────
@@ -108,6 +111,237 @@ function ThinkingDots() {
         {".".repeat(dotCount)}
       </span>
     </span>
+  );
+}
+
+function MarkdownLink({ href, children }: { href?: string; children: React.ReactNode }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const normalizedHref = href?.trim() ?? "";
+  const hasSafeScheme = /^(https?:|mailto:|tel:)/i.test(normalizedHref);
+  const isSafeRelative = /^(\/|#|\?)/.test(normalizedHref);
+  const safeHref = hasSafeScheme || isSafeRelative ? normalizedHref : "";
+
+  if (!safeHref) {
+    return <span>{children}</span>;
+  }
+
+  return (
+    <a
+      href={safeHref}
+      target="_blank"
+      rel="noopener noreferrer nofollow"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        color: isHovered ? theme.colors.linkHover : theme.colors.link,
+        textDecoration: isHovered ? "underline" : "none",
+        textUnderlineOffset: "2px",
+        fontWeight: 500,
+        overflowWrap: "anywhere",
+        wordBreak: "break-word",
+      }}
+    >
+      {children}
+    </a>
+  );
+}
+
+function AssistantMarkdown({ content }: { content: string }) {
+  return (
+    <div
+      style={{
+        overflowWrap: "anywhere",
+        wordBreak: "break-word",
+      }}
+    >
+      <ReactMarkdown
+        skipHtml
+        remarkPlugins={[remarkGfm, remarkBreaks]}
+        components={{
+          a: ({ href, children }: any) => (
+            <MarkdownLink href={href}>{children}</MarkdownLink>
+          ),
+          p: ({ children }: any) => (
+            <p style={{ margin: 0, marginBottom: theme.spacing.sm }}>{children}</p>
+          ),
+          strong: ({ children }: any) => (
+            <strong style={{ fontWeight: 700 }}>{children}</strong>
+          ),
+          em: ({ children }: any) => <em style={{ fontStyle: "italic" }}>{children}</em>,
+          del: ({ children }: any) => (
+            <del style={{ textDecoration: "line-through" }}>{children}</del>
+          ),
+          h1: ({ children }: any) => (
+            <h1
+              style={{
+                margin: `0 0 ${theme.spacing.sm}`,
+                fontSize: "22px",
+                lineHeight: 1.25,
+                fontWeight: 700,
+              }}
+            >
+              {children}
+            </h1>
+          ),
+          h2: ({ children }: any) => (
+            <h2
+              style={{
+                margin: `0 0 ${theme.spacing.sm}`,
+                fontSize: "19px",
+                lineHeight: 1.3,
+                fontWeight: 700,
+              }}
+            >
+              {children}
+            </h2>
+          ),
+          h3: ({ children }: any) => (
+            <h3
+              style={{
+                margin: `0 0 ${theme.spacing.xs}`,
+                fontSize: "17px",
+                lineHeight: 1.35,
+                fontWeight: 700,
+              }}
+            >
+              {children}
+            </h3>
+          ),
+          h4: ({ children }: any) => (
+            <h4
+              style={{
+                margin: `0 0 ${theme.spacing.xs}`,
+                fontSize: theme.typography.base,
+                lineHeight: 1.4,
+                fontWeight: 700,
+              }}
+            >
+              {children}
+            </h4>
+          ),
+          ul: ({ children }: any) => (
+            <ul style={{ margin: `0 0 ${theme.spacing.sm}`, paddingLeft: theme.spacing.xl }}>
+              {children}
+            </ul>
+          ),
+          ol: ({ children }: any) => (
+            <ol style={{ margin: `0 0 ${theme.spacing.sm}`, paddingLeft: theme.spacing.xl }}>
+              {children}
+            </ol>
+          ),
+          li: ({ children }: any) => (
+            <li style={{ marginBottom: theme.spacing.xs }}>{children}</li>
+          ),
+          blockquote: ({ children }: any) => (
+            <blockquote
+              style={{
+                margin: `0 0 ${theme.spacing.sm}`,
+                paddingLeft: theme.spacing.md,
+                borderLeft: `3px solid ${theme.colors.borderSubtle}`,
+                color: theme.colors.textSecondary,
+              }}
+            >
+              {children}
+            </blockquote>
+          ),
+          hr: () => (
+            <hr
+              style={{
+                border: "none",
+                borderTop: `1px solid ${theme.colors.borderSubtle}`,
+                margin: `${theme.spacing.md} 0`,
+              }}
+            />
+          ),
+          code: ({ children, className }: any) => {
+            const isBlock = Boolean(className);
+
+            if (!isBlock) {
+              return (
+                <code
+                  style={{
+                    padding: `0 ${theme.spacing.xs}`,
+                    borderRadius: theme.radius.button,
+                    background: theme.colors.pageBackground,
+                    fontSize: theme.typography.small,
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                  }}
+                >
+                  {children}
+                </code>
+              );
+            }
+
+            return (
+              <code
+                className={className}
+                style={{
+                  display: "block",
+                  whiteSpace: "pre-wrap",
+                  overflowWrap: "anywhere",
+                  fontSize: theme.typography.small,
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                }}
+              >
+                {children}
+              </code>
+            );
+          },
+          pre: ({ children }: any) => (
+            <pre
+              style={{
+                margin: `0 0 ${theme.spacing.sm}`,
+                padding: theme.spacing.md,
+                borderRadius: theme.radius.button,
+                background: theme.colors.pageBackground,
+                overflowX: "auto",
+              }}
+            >
+              {children}
+            </pre>
+          ),
+          table: ({ children }: any) => (
+            <div style={{ overflowX: "auto", marginBottom: theme.spacing.sm }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: theme.typography.small,
+                }}
+              >
+                {children}
+              </table>
+            </div>
+          ),
+          th: ({ children }: any) => (
+            <th
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                border: `1px solid ${theme.colors.borderSubtle}`,
+                background: theme.colors.pageBackground,
+                textAlign: "left",
+                fontWeight: 700,
+              }}
+            >
+              {children}
+            </th>
+          ),
+          td: ({ children }: any) => (
+            <td
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                border: `1px solid ${theme.colors.borderSubtle}`,
+                verticalAlign: "top",
+              }}
+            >
+              {children}
+            </td>
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 }
 
@@ -317,10 +551,11 @@ export default function AssistantPage() {
       style={{
         display: "flex",
         flexDirection: "column",
-        height: `calc(100vh - ${theme.sizes.pageOffset})`,
+        height: "100vh",
         background: theme.colors.pageBackground,
         fontFamily: theme.typography.fontFamily,
         color: theme.colors.textPrimary,
+        margin: "-8px", // counteract body padding to use full viewport width
       }}
     >
       {/* ── Not-configured notice ── */}
@@ -659,6 +894,7 @@ export default function AssistantPage() {
                 <div style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
                   <div
                     style={{
+                      minWidth: 0,
                       maxWidth: theme.sizes.bubbleMaxWidth,
                       padding: `10px ${theme.spacing.lg}`,
                       borderRadius:
@@ -681,12 +917,19 @@ export default function AssistantPage() {
                       fontSize: theme.typography.body,
                       lineHeight: 1.5,
                       boxShadow: msg.isError ? "none" : theme.shadows.bubble,
+                      overflowWrap: "anywhere",
+                      wordBreak: "break-word",
+                      whiteSpace: msg.role === "user" ? "pre-wrap" : "normal",
                     }}
                   >
                     {msg.isError && (
                       <span style={{ marginRight: theme.spacing.xs }}>⚠️</span>
                     )}
-                    {msg.content}
+                    {msg.role === "assistant" && !msg.isError ? (
+                      <AssistantMarkdown content={msg.content} />
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                   <span
                     style={{
