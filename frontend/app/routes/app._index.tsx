@@ -1,13 +1,34 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useFetcher } from "@remix-run/react";
+import { useFetcher, useLoaderData } from "@remix-run/react";
 import { authenticate } from "~/shopify.server";
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { Spinner } from "@shopify/polaris";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
+import { Spinner, Banner, Link } from "@shopify/polaris";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { assistantTheme as theme } from "~/styles/assistant-theme";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  return json({ shopId: session.shop });
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
   await authenticate.admin(request);
-  return null;
+  const { intent, sessionToken, shopId } = await request.json() as {
+    intent: string;
+    sessionToken: string;
+    shopId: string;
+  };
+
+  if (intent === "loadLokte") {
+    const res = await fetch(`${process.env.BACKEND_URL}/config/${shopId}/lokte`, {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    });
+    const lokte = res.ok ? await res.json() : {};
+    return json({ lokte });
+  }
+
+  return json({});
 };
 
 interface ChatMessage {
@@ -18,6 +39,25 @@ interface ChatMessage {
 }
 
 type ChatApiResponse = { reply: string } | { error: string };
+
+interface LokteConfig {
+  general?: {
+    enable?: number | boolean;
+    api_key?: string;
+    user_id?: string;
+  };
+}
+
+function isLokteConfigured(cfg: LokteConfig | null): boolean {
+  if (!cfg) return false;
+  const g = cfg.general;
+  if (!g) return false;
+  const enabled = Number(g.enable) === 1;
+  // Backend masks set secret fields as "****"; empty string means not set
+  const hasKey = typeof g.api_key === "string" && g.api_key.length > 0;
+  const hasUser = typeof g.user_id === "string" && g.user_id.length > 0;
+  return enabled && hasKey && hasUser;
+}
 
 interface SuggestedQuestion {
   question: string;
@@ -41,15 +81,35 @@ const SUGGESTED_QUESTIONS: SuggestedQuestion[] = [
 ];
 
 export default function AssistantPage() {
+  const { shopId } = useLoaderData<typeof loader>();
+  const shopify = useAppBridge();
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const fetcher = useFetcher<ChatApiResponse>();
+  const configFetcher = useFetcher<{ lokte: LokteConfig }>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [textareaFocused, setTextareaFocused] = useState(false);
 
+  const lokteConfig: LokteConfig | null = (configFetcher.data?.lokte as LokteConfig) ?? null;
+  const configured = isLokteConfigured(lokteConfig);
+  const configChecked = configFetcher.state === "idle" && configFetcher.data !== undefined;
+
   const isLoading = fetcher.state !== "idle";
   const hasMessages = messages.length > 0;
+
+  // Load Lokte config on mount to check if the integration is set up
+  useEffect(() => {
+    (async () => {
+      const sessionToken = await shopify.idToken();
+      configFetcher.submit(
+        { intent: "loadLokte", sessionToken, shopId },
+        { method: "POST", encType: "application/json" },
+      );
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,9 +124,9 @@ export default function AssistantPage() {
   }, [inputValue]);
 
   const sendMessage = useCallback(
-    (text: string) => {
+    async (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || isLoading) return;
+      if (!trimmed || isLoading || !configured) return;
 
       setMessages((prev) => [
         ...prev,
@@ -74,18 +134,20 @@ export default function AssistantPage() {
       ]);
       setInputValue("");
 
+      const sessionToken = await shopify.idToken();
+
       // fetcher is intentionally omitted from deps — useFetcher() returns a stable reference in Remix v2
-      fetcher.submit(JSON.stringify({ message: trimmed }), {
+      fetcher.submit(JSON.stringify({ message: trimmed, sessionToken }), {
         method: "POST",
         action: "/api/chat",
         encType: "application/json",
       });
     },
-    [isLoading], // eslint-disable-line react-hooks/exhaustive-deps
+    [isLoading, configured, shopify], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleSend = useCallback(() => {
-    sendMessage(inputValue);
+    void sendMessage(inputValue);
   }, [inputValue, sendMessage]);
 
   // Append assistant reply (or error) when fetcher resolves
@@ -114,6 +176,7 @@ export default function AssistantPage() {
   };
 
   function renderInputBox() {
+    const inputDisabled = !configured || isLoading;
     return (
       <div
         style={{
@@ -127,6 +190,7 @@ export default function AssistantPage() {
             : theme.shadows.input,
           overflow: "hidden",
           transition: `border-color ${theme.transitions.fast}, box-shadow ${theme.transitions.fast}`,
+          opacity: inputDisabled && !isLoading ? 0.5 : 1,
         }}
       >
         <textarea
@@ -136,8 +200,9 @@ export default function AssistantPage() {
           onKeyDown={handleKeyDown}
           onFocus={() => setTextareaFocused(true)}
           onBlur={() => setTextareaFocused(false)}
-          placeholder="How can AI Assistant help you today?"
+          placeholder={configured ? "How can AI Assistant help you today?" : "Configure Lokte integration to start chatting…"}
           rows={1}
+          disabled={inputDisabled}
           style={{
             display: "block",
             width: "100%",
@@ -175,7 +240,7 @@ export default function AssistantPage() {
           <button
             type="button"
             onClick={handleSend}
-            disabled={!inputValue.trim() || isLoading}
+            disabled={!inputValue.trim() || inputDisabled}
             aria-label="Send message"
             style={{
               width: theme.sizes.sendButton,
@@ -183,11 +248,11 @@ export default function AssistantPage() {
               borderRadius: theme.radius.round,
               border: "none",
               background:
-                !inputValue.trim() || isLoading
+                !inputValue.trim() || inputDisabled
                   ? theme.colors.disabled
                   : theme.colors.brand,
               cursor:
-                !inputValue.trim() || isLoading ? "not-allowed" : "pointer",
+                !inputValue.trim() || inputDisabled ? "not-allowed" : "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -225,6 +290,17 @@ export default function AssistantPage() {
         color: theme.colors.textPrimary,
       }}
     >
+      {/* ── Not-configured banner ── */}
+      {configChecked && !configured && (
+        <div style={{ flexShrink: 0, padding: `${theme.spacing.sm} ${theme.spacing.lg}` }}>
+          <Banner tone="warning">
+            Lokte integration is not set up.{" "}
+            <Link url="/app/configuration">Go to Configuration</Link> to enable it and
+            enter your API key and User ID.
+          </Banner>
+        </div>
+      )}
+
       {/* ── Chat header — only shown in active conversation ── */}
       {hasMessages && (
         <div
@@ -393,7 +469,8 @@ export default function AssistantPage() {
                   <button
                     key={sq.question}
                     type="button"
-                    onClick={() => sendMessage(sq.question)}
+                    disabled={!configured}
+                    onClick={() => void sendMessage(sq.question)}
                     style={{
                       textAlign: "left",
                       fontSize: theme.typography.body,
@@ -403,10 +480,12 @@ export default function AssistantPage() {
                       border: "none",
                       background: "transparent",
                       color: theme.colors.textSecondary,
-                      cursor: "pointer",
+                      cursor: configured ? "pointer" : "not-allowed",
+                      opacity: configured ? 1 : 0.4,
                       transition: `background ${theme.transitions.fast}`,
                     }}
                     onMouseEnter={(e) => {
+                      if (!configured) return;
                       (e.currentTarget as HTMLButtonElement).style.background =
                         theme.colors.suggestionHover;
                     }}
