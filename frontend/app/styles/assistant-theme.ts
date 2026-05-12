@@ -9,6 +9,8 @@ export const assistantTheme = {
   colors: {
     /** Amber brand colour — not part of the Polaris palette. */
     brand: "#eab308",
+    link: "#b77900",
+    linkHover: "#92400e",
     pageBackground: "var(--p-color-bg, #f6f6f7)",
     surface: "var(--p-color-bg-surface, #ffffff)",
     border: "var(--p-color-border, #c9cccf)",
