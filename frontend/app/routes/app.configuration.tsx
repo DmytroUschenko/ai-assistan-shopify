@@ -8,16 +8,16 @@ import {
   Layout,
   Card,
   BlockStack,
-  InlineStack,
   Text,
   Select as PolarisSelect,
   TextField,
   Collapsible,
   Divider,
-  Banner,
   Spinner,
+  SkeletonBodyText,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
+import { assistantTheme as theme } from "~/styles/assistant-theme";
 
 // ── Types (mirror of backend config-meta.types.ts) ──────────────────────────
 type FieldType = "select" | "text" | "toggle" | "number" | "secret";
@@ -141,14 +141,17 @@ function ToggleSwitch({
       style={{
         width: 44,
         height: 24,
+        boxSizing: "border-box",
+        display: "inline-flex",
+        alignItems: "center",
         borderRadius: 12,
-        background: checked ? "#008060" : "#8c9196",
-        border: "none",
+        background: checked ? theme.colors.brand : theme.colors.disabled,
+        border: `1px solid ${checked ? theme.colors.brand : theme.colors.border}`,
         position: "relative",
         cursor: "pointer",
         padding: 0,
         flexShrink: 0,
-        transition: "background 0.2s",
+        transition: `background ${theme.transitions.fast}, border-color ${theme.transitions.fast}`,
       }}
     >
       <span
@@ -159,10 +162,11 @@ function ToggleSwitch({
           borderRadius: "50%",
           background: "#fff",
           position: "absolute",
-          top: 3,
+          top: "50%",
           left: checked ? 23 : 3,
+          transform: "translateY(-50%)",
           transition: "left 0.2s",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+          boxShadow: theme.shadows.bubble,
         }}
       />
     </button>
@@ -211,7 +215,13 @@ function ConfigField({
           ? (isOn ? fieldMeta.toggleOptions[0].label : fieldMeta.toggleOptions[1].label)
           : (isOn ? "On" : "Off");
         return (
-          <InlineStack gap="300" align="start" blockAlign="center">
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: theme.spacing.md,
+            }}
+          >
             <ToggleSwitch
               checked={isOn}
               onChange={(newChecked) => {
@@ -227,10 +237,20 @@ function ConfigField({
                 }
               }}
             />
-            <Text variant="bodyMd" as="span" tone="subdued">
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                height: 24,
+                color: theme.colors.textSecondary,
+                fontSize: theme.typography.body,
+                lineHeight: "24px",
+                fontFamily: "inherit",
+              }}
+            >
               {stateLabel}
-            </Text>
-          </InlineStack>
+            </span>
+          </div>
         );
       }
 
@@ -280,9 +300,9 @@ function ConfigField({
       style={{
         display: "grid",
         gridTemplateColumns: "1fr 1fr",
-        gap: "0.5rem 1.5rem",
+        gap: `${theme.spacing.sm} ${theme.spacing.lg}`,
         alignItems: "center",
-        padding: "0.75rem 0",
+        padding: `${theme.spacing.md} 0`,
       }}
     >
       <label htmlFor={id}>
@@ -325,9 +345,9 @@ function ConfigGroup({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          padding: "0.7rem 1rem",
-          background: "#f6f6f7",
-          border: "1px solid #e1e3e5",
+          padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+          background: theme.colors.pageBackground,
+          border: `1px solid ${theme.colors.borderSubtle}`,
           borderRadius: open ? "6px 6px 0 0" : "6px",
           cursor: "pointer",
           textAlign: "left",
@@ -341,7 +361,7 @@ function ConfigGroup({
           aria-hidden
           style={{
             display: "inline-block",
-            color: "#6d7175",
+            color: theme.colors.textSecondary,
             fontSize: "0.65rem",
             transform: open ? "rotate(0deg)" : "rotate(-90deg)",
             transition: "transform 0.2s",
@@ -356,10 +376,11 @@ function ConfigGroup({
       <Collapsible open={open} id={id}>
         <div
           style={{
-            border: "1px solid #e1e3e5",
+            border: `1px solid ${theme.colors.borderSubtle}`,
             borderTop: "none",
             borderRadius: "0 0 6px 6px",
-            padding: "0 1rem",
+            padding: `0 ${theme.spacing.lg}`,
+            background: theme.colors.surface,
           }}
         >
           {entries.map(([fieldPath, fieldMeta], i) => (
@@ -367,7 +388,7 @@ function ConfigGroup({
               key={fieldPath}
               style={
                 i < entries.length - 1
-                  ? { borderBottom: "1px solid #f1f2f3" }
+                  ? { borderBottom: `1px solid ${theme.colors.borderSubtle}` }
                   : undefined
               }
             >
@@ -402,7 +423,7 @@ export default function Configuration() {
     (async () => {
       const sessionToken = await shopify.idToken();
       loadFetcher.submit(
-        { intent: "load", sessionToken, shopId },
+        JSON.stringify({ intent: "load", sessionToken, shopId }),
         { method: "POST", encType: "application/json" }
       );
     })();
@@ -451,7 +472,7 @@ export default function Configuration() {
     }
 
     saveFetcher.submit(
-      { sessionToken, shopId, changes },
+      JSON.stringify({ sessionToken, shopId, changes }),
       { method: "POST", encType: "application/json" }
     );
   };
@@ -460,34 +481,135 @@ export default function Configuration() {
   const isSaving = saveFetcher.state !== "idle";
 
   return (
-    <Page
-      title="Configuration"
-      primaryAction={{
-        content: isSaving ? "Saving…" : "Save",
-        onAction: handleSave,
-        disabled: isSaving || isLoading,
-        loading: isSaving,
-      }}
-    >
-      <Layout>
+    <div style={{ fontFamily: theme.typography.fontFamily, margin: `0 ${theme.spacing.lg}` }}>
+      <Page>
+        <Layout>
+        <Layout.Section>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: theme.spacing.md,
+              flexWrap: "wrap",
+            }}
+          >
+            <Text variant="headingLg" as="h1">
+              Configuration
+            </Text>
+            <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm }}>
+              {isSaving && (
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: theme.spacing.xs,
+                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                    borderRadius: theme.radius.button,
+                    border: `1px solid ${theme.colors.borderSubtle}`,
+                    background: theme.colors.surface,
+                  }}
+                >
+                  <Spinner size="small" />
+                  <span
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.small,
+                      lineHeight: "16px",
+                    }}
+                  >
+                    Saving changes...
+                  </span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving || isLoading}
+                style={{
+                  background: theme.colors.brand,
+                  color: theme.colors.white,
+                  border: `1px solid ${theme.colors.brand}`,
+                  borderRadius: theme.radius.button,
+                  padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+                  fontFamily: "inherit",
+                  fontSize: theme.typography.body,
+                  fontWeight: 700,
+                  cursor: isSaving || isLoading ? "not-allowed" : "pointer",
+                  opacity: isSaving || isLoading ? 0.7 : 1,
+                  boxShadow: isSaving ? "none" : theme.shadows.bubble,
+                  transition: `opacity ${theme.transitions.fast}`,
+                }}
+              >
+                {isSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </Layout.Section>
+
         {savedBanner && (
           <Layout.Section>
-            <Banner tone="success" onDismiss={() => setSavedBanner(false)}>
-              Configuration saved successfully.
-            </Banner>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: theme.spacing.sm,
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                border: `1px solid ${theme.colors.borderSubtle}`,
+                borderLeft: `4px solid ${theme.colors.brand}`,
+                borderRadius: theme.radius.button,
+                background: theme.colors.surface,
+              }}
+            >
+              <span
+                style={{
+                  color: theme.colors.textSecondary,
+                  fontSize: theme.typography.body,
+                  lineHeight: "20px",
+                }}
+              >
+                Configuration saved successfully.
+              </span>
+              <button
+                type="button"
+                onClick={() => setSavedBanner(false)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: theme.colors.textSecondary,
+                  cursor: "pointer",
+                  fontSize: theme.typography.body,
+                  lineHeight: "20px",
+                  padding: 0,
+                }}
+                aria-label="Dismiss saved message"
+              >
+                Dismiss
+              </button>
+            </div>
           </Layout.Section>
         )}
 
         {isLoading && (
           <Layout.Section>
-            <div style={{ display: "flex", justifyContent: "center", padding: "3rem 0" }}>
-              <BlockStack gap="300" inlineAlign="center">
-                <Spinner size="large" />
-                <Text variant="bodyMd" as="p" tone="subdued">
-                  Loading configuration…
-                </Text>
+            <Card>
+              <BlockStack gap="400">
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: theme.spacing.sm,
+                  }}
+                >
+                  <Spinner size="small" />
+                  <Text variant="bodyMd" as="p" tone="subdued">
+                    Loading configuration...
+                  </Text>
+                </div>
+                <SkeletonBodyText lines={6} />
               </BlockStack>
-            </div>
+            </Card>
           </Layout.Section>
         )}
 
@@ -501,10 +623,9 @@ export default function Configuration() {
               <Layout.Section key={namespace}>
                 <Card>
                   <BlockStack gap="400">
-                    <Text variant="headingMd" as="h2">
+                    <Text variant="headingMd" as="h3">
                       {nsMeta.moduleLabel}
                     </Text>
-                    <Divider />
                     <BlockStack gap="200">
                       {groups.map(({ groupLabel, entries }) => (
                         <ConfigGroup
@@ -524,7 +645,8 @@ export default function Configuration() {
               </Layout.Section>
             );
           })}
-      </Layout>
-    </Page>
+        </Layout>
+      </Page>
+    </div>
   );
 }
