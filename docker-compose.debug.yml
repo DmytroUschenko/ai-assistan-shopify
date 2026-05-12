@@ -26,6 +26,8 @@ services:
       SCOPES: ${SCOPES:-write_products,read_orders}
       BACKEND_URL: http://localhost:3004
       NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "500"
       # BE
       ALLOWED_ORIGINS: http://localhost:3000
       DB_HOST: postgres
