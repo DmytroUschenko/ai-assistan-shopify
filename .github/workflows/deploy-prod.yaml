@@ -29,5 +29,5 @@ jobs:
             cd "${{ secrets.PROD_PATH }}"
             git fetch --all
             git checkout main
-            git pull origin main
+            git reset --hard origin/main
             make deploy-prod
