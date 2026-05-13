@@ -29,7 +29,7 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci --omit=dev
 COPY --from=fe-builder /build/frontend/build ./build
-COPY --from=fe-builder /build/frontend/public/build ./public/build
+COPY --from=fe-builder /build/frontend/public ./public
 COPY --from=fe-builder /build/frontend/node_modules/.prisma ./node_modules/.prisma
 COPY --from=fe-builder /build/frontend/node_modules/@prisma ./node_modules/@prisma
 COPY --from=fe-builder /build/frontend/node_modules/prisma ./node_modules/prisma
