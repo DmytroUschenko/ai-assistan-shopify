@@ -15,18 +15,37 @@ import { assistantTheme as theme } from "~/styles/assistant-theme";
 // (backend DevToolsModule, non-production only). No hardcoded constants here.
 // ────────────────────────────────────────────────────────────────────────────
 
+import { clearChatHistory, type ChatMessageRecord } from "~/backend.server";
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  return json({ shopId: session.shop });
+  const userId = String(session.userId ?? "") || "default";
+  return json({ shopId: session.shop, userId });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  await authenticate.admin(request);
-  const { intent, sessionToken, shopId } = await request.json() as {
+  const { session } = await authenticate.admin(request);
+  const { intent, sessionToken, shopId, userId } = await request.json() as {
     intent: string;
     sessionToken: string;
     shopId: string;
+    userId: string;
   };
+
+  if (intent === "clearHistory") {
+    await clearChatHistory(shopId, userId, sessionToken);
+    return json({ cleared: true });
+  }
+
+  if (intent === "loadHistory") {
+    const backendUrl = process.env.BACKEND_URL;
+    const res = await fetch(
+      `${backendUrl}/lokte/${shopId}/history?userId=${encodeURIComponent(userId)}`,
+      { headers: { Authorization: `Bearer ${sessionToken}` } },
+    );
+    const messages = res.ok ? await res.json() : [];
+    return json({ messages });
+  }
 
   if (intent === "loadLokte") {
     const authHeader = { Authorization: `Bearer ${sessionToken}` };
@@ -558,16 +577,19 @@ function AssistantMarkdown({ content, documents }: { content: string; documents:
 }
 
 export default function AssistantPage() {
-  const { shopId } = useLoaderData<typeof loader>();
+  const { shopId, userId } = useLoaderData<typeof loader>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const fetcher = useFetcher<ChatApiResponse>();
+  const clearFetcher = useFetcher<{ cleared: boolean }>();
+  const historyFetcher = useFetcher<{ messages: ChatMessageRecord[] }>();
   const configFetcher = useFetcher<{ lokte: LokteConfig; devForceNotConfigured: boolean }>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [textareaFocused, setTextareaFocused] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const lokteConfig: LokteConfig | null = (configFetcher.data?.lokte as LokteConfig) ?? null;
   const devForceNotConfigured = Boolean(configFetcher.data?.devForceNotConfigured);
@@ -578,7 +600,7 @@ export default function AssistantPage() {
   const isLoading = fetcher.state !== "idle";
   const hasMessages = messages.length > 0;
 
-  // Load Lokte config on mount to check if the integration is set up
+  // Load Lokte config + chat history on mount
   useEffect(() => {
     (async () => {
       const sessionToken = await shopify.idToken();
@@ -586,13 +608,27 @@ export default function AssistantPage() {
         { intent: "loadLokte", sessionToken, shopId },
         { method: "POST", encType: "application/json" },
       );
+      historyFetcher.submit(
+        { intent: "loadHistory", sessionToken, shopId, userId },
+        { method: "POST", encType: "application/json" },
+      );
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId]);
 
+  // Hydrate messages from history once loaded
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (historyFetcher.data?.messages) {
+      setMessages(
+        historyFetcher.data.messages.map((m) => ({
+          id: m.id,
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          isError: m.isError,
+        })),
+      );
+    }
+  }, [historyFetcher.data]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -601,6 +637,13 @@ export default function AssistantPage() {
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, theme.sizes.textareaMaxHeight)}px`;
   }, [inputValue]);
+
+  // Reset confirmClear once the clear action finishes
+  useEffect(() => {
+    if (clearFetcher.state === "idle" && clearFetcher.data?.cleared) {
+      setConfirmClear(false);
+    }
+  }, [clearFetcher.state, clearFetcher.data]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -616,7 +659,7 @@ export default function AssistantPage() {
       const sessionToken = await shopify.idToken();
 
       // fetcher is intentionally omitted from deps — useFetcher() returns a stable reference in Remix v2
-      fetcher.submit(JSON.stringify({ message: trimmed, sessionToken }), {
+      fetcher.submit(JSON.stringify({ message: trimmed, sessionToken, userId }), {
         method: "POST",
         action: "/api/chat",
         encType: "application/json",
@@ -651,6 +694,17 @@ export default function AssistantPage() {
       }
     }
   }, [fetcher.state, fetcher.data]);
+
+  const handleClear = useCallback(async () => {
+    if (!confirmClear) { setConfirmClear(true); return; }
+    setConfirmClear(false);
+    setMessages([]);
+    const sessionToken = await shopify.idToken();
+    clearFetcher.submit(
+      JSON.stringify({ intent: "clearHistory", sessionToken, shopId, userId }),
+      { method: "POST", encType: "application/json" },
+    );
+  }, [confirmClear, shopify, shopId, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -868,47 +922,53 @@ export default function AssistantPage() {
             background: theme.colors.surface,
           }}
         >
-          <button
-            type="button"
-            onClick={() => setMessages([])}
-            aria-label="New conversation"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: theme.spacing.xs,
-              padding: `6px ${theme.spacing.sm}`,
-              border: `1px solid ${theme.colors.border}`,
-              borderRadius: theme.radius.button,
-              background: "transparent",
-              color: theme.colors.textSecondary,
-              fontSize: theme.typography.small,
-              cursor: "pointer",
-              transition: `background ${theme.transitions.fast}`,
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                theme.colors.suggestionHover;
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                "transparent";
-            }}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => void handleClear()}
+              onBlur={() => setConfirmClear(false)}
+              aria-label={confirmClear ? "Confirm — this will erase the conversation" : "Start a new chat (clears current conversation)"}
+              title={confirmClear ? "" : "Start a new chat — clears current conversation history"}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: theme.spacing.xs,
+                padding: `6px ${theme.spacing.sm}`,
+                border: `1px solid ${confirmClear ? theme.colors.errorBorder : theme.colors.border}`,
+                borderRadius: theme.radius.button,
+                background: confirmClear ? theme.colors.errorBg : "transparent",
+                color: confirmClear ? theme.colors.errorText : theme.colors.textSecondary,
+                fontSize: theme.typography.small,
+                cursor: "pointer",
+                transition: `background ${theme.transitions.fast}, color ${theme.transitions.fast}, border-color ${theme.transitions.fast}`,
+              }}
+              onMouseEnter={(e) => {
+                if (!confirmClear)
+                  (e.currentTarget as HTMLButtonElement).style.background = theme.colors.suggestionHover;
+              }}
+              onMouseLeave={(e) => {
+                if (!confirmClear)
+                  (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+              }}
             >
-              <path d="M19 12H5M12 5l-7 7 7 7" />
-            </svg>
-            New conversation
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {confirmClear
+                  ? <><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></>
+                  : <><path d="M12 5v14M5 12l7-7 7 7"/></>}
+              </svg>
+              {confirmClear ? "Confirm? (clear history)" : "New chat"}
+            </button>
+          </div>
           <div
             style={{
               display: "flex",

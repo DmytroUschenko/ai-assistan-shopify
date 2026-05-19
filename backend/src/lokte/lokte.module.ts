@@ -1,7 +1,10 @@
 import { Module, OnModuleInit } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigRegistryService } from '../config-registry/config-registry.service';
 import { LokteService } from './lokte.service';
 import { LokteController } from './lokte.controller';
+import { ChatMessage } from './entities/chat-message.entity';
+import { ChatSession } from './entities/chat-session.entity';
 
 /**
  * Lokte feature module.
@@ -15,6 +18,7 @@ import { LokteController } from './lokte.controller';
  *   - general.user_id — text    (used as persona_id in Lokte API calls)
  */
 @Module({
+  imports: [TypeOrmModule.forFeature([ChatMessage, ChatSession])],
   providers: [LokteService],
   controllers: [LokteController],
 })
